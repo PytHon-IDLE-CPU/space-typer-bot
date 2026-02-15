@@ -1152,7 +1152,7 @@ async def casino_wheel(call: types.CallbackQuery):
         msg = f"💰 Вы выиграли {format_number(result['amount'])} 💵!"
     elif result["type"] == "xp":
         u["xp"] += result["amount"]
-        msg = f!🧠 Вы получили {result['amount']} XP!"
+        msg = f"🧠 Вы получили {result['amount']} XP!"
     elif result["type"] == "stars":
         u["stars"] += result["amount"]
         msg = f!⭐ Вы получили {result['amount']} ⭐!"
@@ -2593,6 +2593,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
