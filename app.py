@@ -1155,7 +1155,7 @@ async def casino_wheel(call: types.CallbackQuery):
         msg = f"🧠 Вы получили {result['amount']} XP!"
     elif result["type"] == "stars":
         u["stars"] += result["amount"]
-        msg = f!⭐ Вы получили {result['amount']} ⭐!"
+        msg = f"⭐ Вы получили {result['amount']} ⭐!"
     elif result["type"] == "jackpot":
         jackpot = random.randint(1000, 5000)
         u["money"] += jackpot
@@ -1246,7 +1246,7 @@ async def casino_jackpot(call: types.CallbackQuery):
         jackpot_amount = random.randint(50000, 200000)
         u["money"] += jackpot_amount
         msg = (
-            f!💥 ДЖЕКПОТ! ВЫ ВЫИГРАЛИ!\n\n"
+            f"💥 ДЖЕКПОТ! ВЫ ВЫИГРАЛИ!\n\n"
             f"<b>{format_number(jackpot_amount)} 💵</b>\n\n"
             "Поздравляем! Это крупная удача!"
         )
@@ -1480,7 +1480,7 @@ async def market_buy(call: types.CallbackQuery):
         text += (
             f"{i+1}. {res_name}: {format_number(offer['amount'])} шт.\n"
             f"   Цена: {format_number(offer['price'])} 💵/шт.\n"
-            f!   Продавец: {offer['seller_name']}\n\n"
+            f"   Продавец: {offer['seller_name']}\n\n"
         )
         b.row(types.InlineKeyboardButton(
             text=f"Купить #{i+1}",
@@ -2593,6 +2593,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
