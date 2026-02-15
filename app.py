@@ -1159,7 +1159,7 @@ async def casino_wheel(call: types.CallbackQuery):
     elif result["type"] == "jackpot":
         jackpot = random.randint(1000, 5000)
         u["money"] += jackpot
-        msg = f!🎉 ДЖЕКПОТ! Вы выиграли {format_number(jackpot)} 💵!"
+        msg = f"🎉 ДЖЕКПОТ! Вы выиграли {format_number(jackpot)} 💵!"
 
     save_data(data)  # Сохраняем изменения
 
@@ -1615,8 +1615,8 @@ async def upgrade_storage(call: types.CallbackQuery):
     if u["money"] < cost:
         await call.answer(
             f"❌ Недостаточно средств!\n"
-            f!Требуется: {format_number(cost)} 💵\n"
-            f!У вас: {format_number(u['money'])} 💵",
+            f"Требуется: {format_number(cost)} 💵\n"
+            f"У вас: {format_number(u['money'])} 💵",
             show_alert=True
         )
         await storage_menu(call)
@@ -1629,7 +1629,7 @@ async def upgrade_storage(call: types.CallbackQuery):
     await call.message.edit_text(
         f"{HEADER}\n✅ Склад улучшен!\n\n"
         f"Новая вместимость: {next_cap} ед.\n"
-        f!Затраты: {format_number(cost)} 💵\n"
+        f"Затраты: {format_number(cost)} 💵\n"
         f"{FOOTER}",
         parse_mode=ParseMode.HTML,
         reply_markup=back_kb()
@@ -1954,8 +1954,8 @@ async def buy_case_premium(call: types.CallbackQuery):
     if u["money"] < cost:
         await call.answer(
             f"❌ Недостаточно средств!\n"
-            f!Требуется: {format_number(cost)} 💵\n"
-            f!У вас: {format_number(u['money'])} 💵",
+            f"Требуется: {format_number(cost)} 💵\n"
+            f"У вас: {format_number(u['money'])} 💵",
             show_alert=True
         )
         await cases_menu(call)
@@ -1983,8 +1983,8 @@ async def buy_case_legendary(call: types.CallbackQuery):
     if u["money"] < cost:
         await call.answer(
             f"❌ Недостаточно средств!\n"
-            f!Требуется: {format_number(cost)} 💵\n"
-            f!У вас: {format_number(u['money'])} 💵",
+            f"Требуется: {format_number(cost)} 💵\n"
+            f"У вас: {format_number(u['money'])} 💵",
             show_alert=True
         )
         await cases_menu(call)
@@ -2337,8 +2337,8 @@ async def buy_chip(call: types.CallbackQuery):
     if u["stars"] < cost:
         await call.answer(
             f"❌ Недостаточно звёзд!\n"
-            f!Требуется: {format_number(cost)} ⭐\n"
-            f!У вас: {format_number(u['stars'])} ⭐",
+            f"Требуется: {format_number(cost)} ⭐\n"
+            f"У вас: {format_number(u['stars'])} ⭐",
             show_alert=True
         )
         await shop_menu(call)
@@ -2367,8 +2367,8 @@ async def buy_booster(call: types.CallbackQuery):
     if u["stars"] < cost:
         await call.answer(
             f"❌ Недостаточно звёзд!\n"
-            f!Требуется: {format_number(cost)} ⭐\n"
-            f!У вас: {format_number(u['stars'])} ⭐",
+            f"Требуется: {format_number(cost)} ⭐\n"
+            f"У вас: {format_number(u['stars'])} ⭐",
             show_alert=True
         )
         await shop_menu(call)
@@ -2405,8 +2405,8 @@ async def buy_premium_case(call: types.CallbackQuery):
     if u["stars"] < cost:
         await call.answer(
             f"❌ Недостаточно звёзд!\n"
-            f!Требуется: {format_number(cost)} ⭐\n"
-            f!У вас: {format_number(u['stars'])} ⭐",
+            f"Требуется: {format_number(cost)} ⭐\n"
+            f"У вас: {format_number(u['stars'])} ⭐",
             show_alert=True
         )
         await shop_menu(call)
@@ -2593,10 +2593,5 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
-
-
-
-
-
 
 
