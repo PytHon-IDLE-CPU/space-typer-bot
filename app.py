@@ -1423,9 +1423,6 @@ async def confirm_sell(call: types.CallbackQuery):
         "timestamp": datetime.now().isoformat()
     }
     data["market"].append(offer)
-    save_data(data)
-
-    # Уменьшаем количество ресурса у продавца
     u["res"][rid] -= amount
     save_data(data)
 
@@ -1494,7 +1491,7 @@ async def market_buy(call: types.CallbackQuery):
 async def buy_offer(call: types.CallbackQuery):
     offer_idx = int(call.data.split("_")[2])
     data = load_data()
-    offers = data["market"]
+    offers = data.get("market", [])
 
     if offer_idx >= len(offers):
         await call.answer("Предложение не найдено!", show_alert=True)
@@ -1708,15 +1705,26 @@ async def join_event(call: types.CallbackQuery):
             msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
         else:
             u[res] += amount
-            if res == "success":  # Теперь условие полное
-   res = "money"
-balance = 0
+        for res, amount in reward.items():
+    if res in RESOURCES:
+        u["res"][res] = u["res"].get(res, 0) + amount
+        msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
 
-if res == "money":
-    balance += 500
-    print(f"Баланс: {balance} монет")
-else:
-    print("Операция не распознана")
+    elif res == "money":
+        u["money"] += amount
+        msg += f"+ {format_number(amount)} 💵\n"
+
+    elif res == "xp":
+        u["xp"] += amount
+        msg += f"+ {amount} XP\n"
+
+    elif res == "stars":
+        u["stars"] += amount
+        msg += f"+ {amount} ⭐\n"
+
+    elif res == "chip":
+        u["res"]["chip"] = u["res"].get("chip", 0) + amount
+        msg += f"+ {amount} 🔬 Редкий чип\n"
         msg += f"+ {format_number(amount)} 💵\n"
     elif res == "xp":
         msg += f"+ {amount} XP\n"
@@ -1787,7 +1795,7 @@ async def player_stats(call: types.CallbackQuery):
         f"{SEP}\n"
         f"<b>Всего ресурсов собрано:</b> {total_resources} ед.\n"
         f"<b>Потрачено денег:</b> {format_number(total_spent)} 💵\n"
-        f"<b>Заработано денег:</b> {format_number(total_earn, 0)} 💵\n"
+        f"<b>Заработано денег:</b> {format_number(total_earned)} 💵\n"
         f"<b>Соотношение доход/расход:</b> {total_earned / total_spent if total_spent > 0 else '∞'}\n"
         f"<b>Количество выполненных заданий:</b> {u.get('completed_quests', 0)}\n"
         f"<b>Открыто кейсов:</b> {u.get('opened_cases', 0)}\n"
@@ -1835,8 +1843,7 @@ def get_lvl(xp: int) -> int:
     return lvl
 
 def get_next_lvl_xp(lvl: int) -> int:
-    """Возвращает количество опыта для следующего уровня."""
-    return 100 * (lvl ** 1.5)
+    return int(100 * (lvl ** 1.5))
 
 def format_number(num: int) -> str:
     """Форматирует число с разделителями тысяч."""
@@ -1873,7 +1880,7 @@ async def cases_menu(call: types.CallbackQuery):
     case_types = {
         "common": "Обычные (бесплатно)",
         "premium": "Премиум (1 000 💵)",
-        "legendary": "Легендарные (10 0000 💵)"
+        "legendary": "Легендарные (100 000 💵)"
     }
 
     for case_type, desc in case_types.items():
@@ -2384,13 +2391,13 @@ async def buy_booster(call: types.CallbackQuery):
     u["stars"] -= cost
 
     # Добавляем эффект ускорителя (в реальной реализации — с таймером)
-    if "boosters" not in u:
-        u["boosters"] = {}
-    u["boost packed"] = u.get("boosters", {})
-    u["boosters"]["mining_speed"] = {
-        "end_time": (datetime.now() + timedelta(hours=1)).isoformat(),
-        "multiplier": 1.5
-    }
+if "boosters" not in u:
+    u["boosters"] = {}
+
+u["boosters"]["mining_speed"] = {
+    "end_time": (datetime.now() + timedelta(hours=1)).isoformat(),
+    "multiplier": 1.5
+}
 
     save_data(data)
 
@@ -2600,7 +2607,6 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
-
 
 
 
