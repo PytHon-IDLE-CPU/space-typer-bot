@@ -1710,6 +1710,7 @@ async def join_event(call: types.CallbackQuery):
             u[res] += amount
             if res == "success":  # Теперь условие полное
     if res == "money":
+    print("Получены деньги!")
         msg += f"+ {format_number(amount)} 💵\n"
     elif res == "xp":
         msg += f"+ {amount} XP\n"
@@ -2593,6 +2594,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
