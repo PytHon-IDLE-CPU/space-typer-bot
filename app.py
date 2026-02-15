@@ -1,335 +1,728 @@
+import asyncio, random, json, os, logging, time, datetime
 import asyncio
 import random
 import json
 import os
 import logging
-import math
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
 from aiogram import Bot, Dispatcher, types, F
+from aiogram.filters import Command
 from aiogram.filters import Command, CommandObject
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.enums import ParseMode
+from aiogram.types import LabeledPrice, PreCheckoutQuery
 
 # ===================== [ КОНФИГУРАЦИЯ ] =====================
 TOKEN = os.getenv("BOT_TOKEN") 
+
+# Жесткая проверка токена при старте
+if not TOKEN:
+    logging.error("❌ КРИТИЧЕСКАЯ ОШИБКА: Переменная BOT_TOKEN не установлена!")
+    print("❌ ОШИБКА: Забыли указать BOT_TOKEN в переменных окружения.")
+    exit(1)
+
 ADMIN_ID = 5056869104
-DB_PATH = "omega_universe_v6.json"
+DB_PATH = "/data/players.json"
+DB_PATH = "omega_universe_data.json"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
 global_tasks = {}
+global_event = {"name": "Стазис", "bonus": 1.0}
+global_event = {"name": "Тишина", "bonus_money": 1.0, "bonus_xp": 1.0}
 
 HEADER = "<b>🧬 ╔═══════ [ OMEGA-SYSTEM ] ═══════╗</b>"
 FOOTER = "<b>🧬 ╚═══════════════════════════════╝</b>"
 SEP = "<b><pre>───────────────────────────────</pre></b>"
 
-# ===================== [ ПОЛНЫЕ ДАННЫЕ (БЕЗ СОКРАЩЕНИЙ) ] =====================
+# ===================== [ ДАННЫЕ (БЕЗ ЭКОНОМИИ) ] =====================
+PHRASES = [
+    "✨ Ваша туманность начала светиться лазурным светом.", "🧬 В первичном океане зародились первые аминокислоты.",
+    "🌿 Зеленый покров окутал материки планет.", "🐾 На сушу выбрались первые существа.",
+    "🧠 Одна из рас научилась использовать огонь.", "🧬 Вы создали кремниевую форму жизни.",
+    "🍄 Споры гигантских грибов захватили луну.", "🐋 В недрах гиганта зародились левиафаны.",
+    "☄️ Метеоритный поток принес редкие изотопы.", "☀️ Звезда перешла в стадию красного гиганта.",
+    "🕳 Рядом открылась микрочерная дыра.", "💥 Сверхновая вспыхнула в соседнем секторе.",
+    "🌪 Ионный шторм вывел из строя связь.", "🧊 Ледниковый период сковал океаны.",
+    "🌋 Извержение создало горы из кристаллов.", "🛰 Квантовый скачок открыл новую реальность.",
+    "📡 Древний маяк начал подавать сигналы.", "💠 Вы построили Сферу Дайсона вокруг звезды.",
+    "🛸 Неопознанный объект оставил капсулу.", "🌀 Открыт стабильный переход в туманность Андромеды.",
+    "🦾 Цивилизация перешла на аугментации.", "💎 Найден кристалл 'Сердце Звезды'.",
+    "🪐 Кольца планеты превратились в щит.", "🐚 Найдены города под водой.",
+    "📜 Расшифрован код матрицы Вселенной.", "🧘 Найдена раса существ из света.",
+    "🎼 Звезды издали гармоничный резонанс.", "🚪 Обнаружена дверь в Пустоту.",
+    "🍏 Планета-сад расцвела миллионами цветов.", "🧩 Планета приняла форму куба.",
+    "🕰 На спутнике время потекло вспять.", "☁️ Живое облако газа начало петь.",
+    "👁 В центре галактики открылось Око Бездны.", "🧸 Найдена планета из мягкого пуха.",
+    "🍭 Атмосфера луны пахнет карамелью.", "🗿 Гигантские статуи смотрят в небо.",
+    "👑 Ваше имя высечено на кольцах Сатурна.", "🏗 Построен мост между мирами.",
+    "🎭 Раса созданий считает вас Богом.", "🌊 Океан на планете стал разумным.",
+    "🎇 Великий Парад Планет начался.", "🛡 Создан непробиваемый планетарный щит.",
+    "🔋 Энергия вакуума течет в реакторы.", "🌈 В космосе расцвели звездные цветы.",
+    "🕊 В системе наступила эпоха Мира.", "💎 Алмазный дождь на ваших колониях.",
+    "🌑 Луна внезапно подмигнула вам.", "🌌 Вы создали новую галактику из пыли.",
+    "🎷 Космический джаз на всех частотах.", "🛑 Время остановилось по приказу."
+]
+# ===================== [ ДАННЫЕ МИРА ] =====================
+PETS = {
+    "droid": {
+        "n": "🤖 Дроид-помощник", 
+        "price_cr": 50000, "price_stars": 0, 
+        "b_money": 1.1, "b_xp": 1.0, "desc": "+10% к доходу"
+    },
+    "alien_cat": {
+        "n": "🐱 Кот Ориона", 
+        "price_cr": 250000, "price_stars": 10, 
+        "b_money": 1.25, "b_xp": 1.15, "desc": "+25% доната, +15% опыта"
+    },
+    "space_dragon": {
+        "n": "🐉 Звездный Дракон", 
+        "price_cr": 5000000, "price_stars": 50, 
+        "b_money": 2.5, "b_xp": 2.0, "desc": "ЛЕГЕНДА: x2.5 доход, x2 опыт"
+    },
+    "void_beast": {
+        "n": "👾 Тварь Бездны", 
+        "price_cr": 0, "price_stars": 150, 
+        "b_money": 4.0, "b_xp": 3.5, "desc": "БОЖЕСТВО: x4 доход, x3.5 опыт" 
+   }        
+}
+
+PLANETS = {
+    "earth": {"n": "🌍 Земля", "lvl": 1, "desc": "Колыбель жизни. Безопасно.", "mult": 1.0},
+    "mars": {"n": "🔴 Марс", "lvl": 10, "desc": "Ржавые пустыни. Больше опыта.", "mult": 1.5},
+    "titan": {"n": "🧊 Титан", "lvl": 25, "desc": "Ледяные луны. Редкие ресурсы.", "mult": 2.5},
+    "void": {"n": "🕳 Пустота", "lvl": 50, "desc": "Искажение реальности. Опасно.", "mult": 5.0}
+}
+
+RESOURCES = {
+    "iron": "⛓ Железо",
+    "crystal": "💎 Кристалл",
+    "chip": "💾 Чип Древних",
+    "heart": "❤️ Сердце Звезды",
+    "blueprint": "📜 Чертеж Творца"
+}
 
 SHIPS = {
-    "shuttle":      {"name": "🛸 'Бродяга'",           "price": 0,           "mult": 1.0,      "lvl": 1},
+    "shuttle":      {"name": "🛸 'Бродяга'",           "price": 0,             "mult": 1.0,      "lvl": 1},
     "scout":        {"name": "📡 'Разведчик С-12'",    "price": 500,           "mult": 1.5,      "lvl": 2},
-    "interceptor":  {"name": "⚡️ 'Стриж'",             "price": 2000,          "mult": 2.2,      "lvl": 3},
-    "drone_eye":    {"name": "👁 'Око Саурона'",        "price": 7500,          "mult": 3.8,      "lvl": 4},
-    "hauler":       {"name": "🚜 'Косм. Бык'",          "price": 18000,         "mult": 5.5,      "lvl": 5},
+    "interceptor":  {"name": "⚡️ 'Стриж'",            "price": 2000,          "mult": 2.2,      "lvl": 3},
+    "drone_eye":    {"name": "👁 'Око Саурона'",       "price": 7500,          "mult": 3.8,      "lvl": 4},
+    "hauler":       {"name": "🚜 'Косм. Бык'",         "price": 18000,         "mult": 5.5,      "lvl": 5},
     "fighter":      {"name": "⚔️ 'Валькирия'",        "price": 45000,         "mult": 11.0,     "lvl": 7},
-    "bomber":       {"name": "💣 'Сверхновая'",         "price": 120000,        "mult": 20.0,     "lvl": 9},
-    "corvette":     {"name": "🛡 'Бастион'",           "price": 300000,        "mult": 35.0,     "lvl": 11},
+    "bomber":       {"name": "💣 'Сверхновая'",        "price": 120000,        "mult": 20.0,     "lvl": 9},
+    "corvette":     {"name": "🛡 'Бастион'",          "price": 300000,        "mult": 35.0,     "lvl": 11},
     "frigate":      {"name": "🔱 'Посейдон'",          "price": 850000,        "mult": 60.0,     "lvl": 13},
-    "destroyer":    {"name": "🔥 'Гнев'",                "price": 1900000,       "mult": 130.0,    "lvl": 16},
+    "destroyer":    {"name": "🔥 'Гнев'",              "price": 1900000,       "mult": 130.0,    "lvl": 16},
     "cruiser":      {"name": "🛰 'Титан'",              "price": 5000000,       "mult": 320.0,    "lvl": 20},
-    "carrier":      {"name": "🦅 'Фенрир'",              "price": 15000000,      "mult": 800.0,    "lvl": 25},
+    "carrier":      {"name": "🦅 'Фенрир'",            "price": 15000000,      "mult": 800.0,    "lvl": 25},
     "battleship":   {"name": "👑 'Император'",         "price": 35000000,      "mult": 1900.0,   "lvl": 30},
     "dreadnought":  {"name": "💀 'Бездна'",            "price": 100000000,     "mult": 5500.0,   "lvl": 38},
-    "reaper":       {"name": "🩸 'Жнец'",                "price": 350000000,     "mult": 16000.0,  "lvl": 45},
-    "nebula":       {"name": "🌌 'Скиталец'",            "price": 900000000,     "mult": 55000.0,  "lvl": 55},
-    "kronos":       {"name": "⌛️ 'Кронос'",            "price": 3000000000,    "mult": 165000.0, "lvl": 70},
-    "star_eater":   {"name": "🌑 'Пожиратель'",          "price": 15000000000,   "mult": 650000.0, "lvl": 85},
-    "void_walker":  {"name": "👻 'Ходок'",              "price": 75000000000,   "mult": 2200000.0,"lvl": 100},
+    "reaper":       {"name": "🩸 'Жнец'",              "price": 350000000,     "mult": 16000.0,  "lvl": 45},
+    "nebula":       {"name": "🌌 'Скиталец'",          "price": 900000000,     "mult": 55000.0,  "lvl": 55},
+    "kronos":       {"name": "⌛️ 'Кронос'",           "price": 3000000000,    "mult": 165000.0, "lvl": 70},
+    "star_eater":   {"name": "🌑 'Пожиратель'",        "price": 15000000000,   "mult": 650000.0, "lvl": 85},
+    "void_walker":  {"name": "👻 'Ходок'",             "price": 75000000000,   "mult": 2200000.0,"lvl": 100},
     "infinity":     {"name": "♾ 'Бесконечность'",      "price": 300000000000,  "mult": 11000000.0,"lvl": 120},
     "creator":      {"name": "✨ 'ТВОРЕЦ'",            "price": 777777777777,  "mult": 60000000.0,"lvl": 150}
+    "shuttle":      {"name": "🛸 'Бродяга'",           "price": 0,           "mult": 1.0,      "lvl": 1,    "desc": "Старый, но надежный."},
+    "scout":        {"name": "📡 'Разведчик С-12'",    "price": 500,           "mult": 1.5,      "lvl": 2,    "desc": "Быстрый сканер."},
+    "interceptor":  {"name": "⚡️ 'Стриж'",             "price": 2000,          "mult": 2.2,      "lvl": 3,    "desc": "Для молниеносных атак."},
+    "drone_eye":    {"name": "👁 'Око Саурона'",        "price": 7500,          "mult": 3.8,      "lvl": 4,    "desc": "Всевидящий дрон."},
+    "hauler":        {"name": "🚜 'Косм. Бык'",          "price": 18000,         "mult": 5.5,      "lvl": 5,    "desc": "Грузовик для руды."},
+    "fighter":      {"name": "⚔️ 'Валькирия'",        "price": 45000,         "mult": 11.0,     "lvl": 7,    "desc": "Боевая мощь флота."},
+    "bomber":       {"name": "💣 'Сверхновая'",         "price": 120000,        "mult": 20.0,     "lvl": 9,    "desc": "Бомбардировщик."},
+    "corvette":     {"name": "🛡 'Бастион'",           "price": 300000,        "mult": 35.0,     "lvl": 11,   "desc": "Летающая крепость."},
+    "frigate":      {"name": "🔱 'Посейдон'",          "price": 850000,        "mult": 60.0,     "lvl": 13,   "desc": "Флагман эскадр."},
+    "destroyer":    {"name": "🔥 'Гнев'",               "price": 1900000,       "mult": 130.0,    "lvl": 16,   "desc": "Уничтожитель миров."},
+    "cruiser":      {"name": "🛰 'Титан'",              "price": 5000000,       "mult": 320.0,    "lvl": 20,   "desc": "Тяжелый крейсер."},
+    "carrier":      {"name": "🦅 'Фенрир'",             "price": 15000000,      "mult": 800.0,    "lvl": 25,   "desc": "Авианосец флота."},
+    "battleship":   {"name": "👑 'Император'",         "price": 35000000,      "mult": 1900.0,   "lvl": 30,   "desc": "Линкор высшего класса."},
+    "dreadnought":  {"name": "💀 'Бездна'",            "price": 100000000,     "mult": 5500.0,   "lvl": 38,   "desc": "Запрещенное оружие."},
+    "reaper":       {"name": "🩸 'Жнец'",               "price": 350000000,     "mult": 16000.0,  "lvl": 45,   "desc": "Собиратель душ."},
+    "nebula":       {"name": "🌌 'Скиталец'",           "price": 900000000,     "mult": 55000.0,  "lvl": 55,   "desc": "Дух туманности."},
+    "kronos":       {"name": "⌛️ 'Кронос'",            "price": 3000000000,    "mult": 165000.0, "lvl": 70,   "desc": "Властелин времени."},
+    "star_eater":   {"name": "🌑 'Пожиратель'",         "price": 15000000000,   "mult": 650000.0, "lvl": 85,   "desc": "Ест звезды."},
+    "void_walker":  {"name": "👻 'Ходок'",              "price": 75000000000,   "mult": 2200000.0,"lvl": 100,  "desc": "Вне реальности."},
+    "infinity":     {"name": "♾ 'Бесконечность'",      "price": 300000000000,  "mult": 11000000.0,"lvl": 120, "desc": "Конец всего."},
+    "creator":      {"name": "✨ 'ТВОРЕЦ'",            "price": 777777777777,  "mult": 60000000.0,"lvl": 150, "desc": "ВЫ — БОГ."}
 }
 
 CASES = {
-    "free":  {"n": "🎁 БЕСПЛАТНЫЙ", "p": 0, "drop": {"money": (500, 2000), "xp": (10, 50)}},
-    "beta":  {"n": "🧪 БЕТА-КЕЙС", "p": 5000, "drop": {"money": (3000, 10000), "xp": (50, 200)}},
-    "ref":   {"n": "🔗 РЕФЕРАЛЬНЫЙ", "p": 0, "drop": {"money": (15000, 40000), "xp": (200, 600)}},
-    "cheap": {"n": "📦 НЕДОРОГОЙ", "p": 15000, "drop": {"money": (10000, 25000), "xp": (100, 300)}},
-    "mid":   {"n": "💎 СРЕДНИЙ", "p": 100000, "drop": {"money": (80000, 250000), "xp": (500, 1500)}},
-    "rich":  {"n": "💰 ДЛЯ БОГАТЫХ", "p": 1000000, "drop": {"money": (900000, 3000000), "xp": (2000, 10000)}},
-    "ultra": {"n": "👑 МИЛЛИОНЕР", "p": 50000000, "drop": {"money": (45000000, 150000000), "xp": (50000, 200000)}}
+@@ -97,114 +105,509 @@
+    "syndicate": {"n": "💎 Синдикат", "b": "-10% потерь в казино", "id": "syn"}
 }
-
-PETS = {
-    "droid": {"n": "🤖 Дроид", "price_cr": 50000, "b_money": 1.1},
-    "alien_cat": {"n": "🐱 Кот Ориона", "price_cr": 250000, "b_money": 1.3},
-    "dragon": {"n": "🐉 Дракон", "price_cr": 5000000, "b_money": 2.0}
-}
-
-RESOURCES = {"iron": "⛓ Железо", "crystal": "💎 Кристалл", "chip": "💾 Чип", "relic": "⚛️ Осколок Бездны"}
 
 # ===================== [ СИСТЕМА ДАННЫХ ] =====================
+PHRASES = ["✨ Звезды шепчут...", "🧬 ДНК мутирует...", "🛰 Сигнал принят...", "🌌 Туманность зовет...", "☄️ Комета близко..."]
+
+# ===================== [ УТИЛИТЫ ] =====================
+
 def load_data():
-    if not os.path.exists(DB_PATH):
-        return {"players": {}, "market": [], "boss": {"hp": 1000000, "max_hp": 1000000, "active": False}}
-    with open(DB_PATH, "r", encoding='utf-8') as f:
-        return json.load(f)
+    if not os.path.exists(DB_PATH): 
+        os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+        return {"players": {}, "news": "Галактика проснулась."}
+        return {"players": {}, "market": []}
+    try:
+        with open(DB_PATH, "r", encoding='utf-8') as f: return json.load(f)
+    except: return {"players": {}, "news": "Ошибка связи."}
+        with open(DB_PATH, "r", encoding='utf-8') as f: 
+            return json.load(f)
+    except:
+        return {"players": {}, "market": []}
 
 def save_data(data):
-    with open(DB_PATH, "w", encoding='utf-8') as f:
+    with open(DB_PATH, "w", encoding='utf-8') as f: json.dump(data, f, ensure_ascii=False)
+    with open(DB_PATH, "w", encoding='utf-8') as f: 
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def get_lvl(xp): return int(xp**0.5 // 2) + 1
+def get_lvl(xp): 
+    return int(xp**0.5 // 2) + 1
+
+def progress_bar(curr, total, size=10):
+    perc = min(curr / total, 1.0)
+    fill = int(size * perc)
+    return "▰" * fill + "▱" * (size - fill)
+def progress_bar(current, total, length=10):
+    if total <= 0: return "▰" * length
+    percent = min(current / total, 1.0)
+    filled = int(length * percent)
+    return "▰" * filled + "▱" * (length - filled)
 
 # ===================== [ КЛАВИАТУРЫ ] =====================
-def main_kb(uid, xp):
+
+def main_kb(uid, xp=0):
+    lvl = get_lvl(xp)
     b = InlineKeyboardBuilder()
-    b.row(types.InlineKeyboardButton(text="🌀 СИНТЕЗ", callback_data="game_go"),
-          types.InlineKeyboardButton(text="🌋 РЕЙД БОСС", callback_data="boss_menu"))
-    b.row(types.InlineKeyboardButton(text="👤 ПРОФИЛЬ", callback_data="view_profile"),
+    b.row(types.InlineKeyboardButton(text="🌀 НЕЙРО-СИНТЕЗ", callback_data="game_go"))
+    b.row(types.InlineKeyboardButton(text="🌀 СИНТЕЗ (ИГРАТЬ)", callback_data="game_go"))
+    b.row(types.InlineKeyboardButton(text=f"👤 ПРОФИЛЬ (Lvl {lvl})", callback_data="view_profile"),
+          types.InlineKeyboardButton(text="🛒 ВЕРФЬ", callback_data="open_shop_0"))
           types.InlineKeyboardButton(text="🛒 ВЕРФЬ", callback_data="open_shop"))
-    b.row(types.InlineKeyboardButton(text="📈 РЫНОК", callback_data="market_menu"),
+    
+    # НОВАЯ СТРОКА С ПИТОМЦАМИ
+    b.row(types.InlineKeyboardButton(text="🐾 ПИТОМЦЫ", callback_data="pets_menu"),
+          types.InlineKeyboardButton(text="🌍 КАРТА", callback_data="map_menu"))
+    
+    b.row(types.InlineKeyboardButton(text="🎒 РЕСУРСЫ", callback_data="res_menu"),
+          types.InlineKeyboardButton(text="📈 РЫНОК", callback_data="market_menu"))
+    b.row(types.InlineKeyboardButton(text="🧬 НАВЫКИ", callback_data="skills_menu"),
           types.InlineKeyboardButton(text="⚔️ PVP", callback_data="pvp_menu"))
     b.row(types.InlineKeyboardButton(text="📦 КЕЙСЫ", callback_data="cases_menu"),
-          types.InlineKeyboardButton(text="🔧 СЕРВИС", callback_data="service_menu"))
+          types.InlineKeyboardButton(text="📋 ЗАДАНИЯ", callback_data="daily_quests"))
+    b.row(types.InlineKeyboardButton(text="🏦 БАНК", callback_data="bank_menu"),
+          types.InlineKeyboardButton(text="🚜 ГАРАЖ", callback_data="garage_menu"))
+    b.row(types.InlineKeyboardButton(text="🎰 КАЗИНО", callback_data="casino_menu"),
+          types.InlineKeyboardButton(text="📦 КЕЙСЫ", callback_data="cases_menu"))
+    b.row(types.InlineKeyboardButton(text="🛠 СЕРВИС", callback_data="service_menu"),
+          types.InlineKeyboardButton(text="🎁 БОНУС", callback_data="daily_bonus"))
+    if int(uid) == ADMIN_ID: b.row(types.InlineKeyboardButton(text="🛡 АДМИН", callback_data="admin_main"))
+          types.InlineKeyboardButton(text="🛠 СЕРВИС", callback_data="service_menu"))
+    
+    if int(uid) == ADMIN_ID: 
+        b.row(types.InlineKeyboardButton(text="🛡 АДМИН", callback_data="admin_main"))
     return b.as_markup()
 
-# ===================== [ ОБРАБОТЧИКИ ] =====================
+# ===================== [ ХЕНДЛЕРЫ ] =====================
+# ===================== [ ЛОГИКА СИСТЕМ ] =====================
 
 @dp.message(Command("start"))
 async def start(msg: types.Message):
+    uid = str(msg.from_user.id); data = load_data()
     uid = str(msg.from_user.id)
     data = load_data()
+    
     if uid not in data["players"]:
         data["players"][uid] = {
-            "money": 1000, "xp": 0, "ship": "shuttle", "inventory": ["shuttle"],
-            "res": {k: 0 for k in RESOURCES}, "skills": {"agg": 0, "tra": 0},
-            "durability": 100, "name": msg.from_user.first_name, "pvp_wins": 0, "boss_dmg": 0
+            "money": 1000, "xp": 0, "ship": "shuttle", "inventory": ["shuttle"], 
+            "money": 1000, "xp": 0, "stars": 0,
+            "ship": "shuttle", "inventory": ["shuttle"], 
+            "items": {"free": 0, "beta": 0, "ultra": 0}, # Инвентарь кейсов для продажи
+            "res": {"iron": 0, "crystal": 0, "chip": 0, "heart": 0, "blueprint": 0},
+            "skills": {"agg": 0, "tra": 0, "exp": 0},
+            "sp": 0, # Skill Points
+            "bank": 0, "last_daily": 0, "name": msg.from_user.first_name,
+            "faction": None, "tuning": {"eng": 0, "atk": 0, "def": 0},
+            "durability": 100
+            "faction": None, "durability": 100, "pvp_wins": 0,
+            "location": "earth", "last_quest_date": ""
         }
         save_data(data)
-    await msg.answer(f"{HEADER}\n🚀 <b>ДОБРО ПОЖАЛОВАТЬ, ПИЛОТ!</b>\n{SEP}\nИспользуйте меню для навигации по вселенной.\n{FOOTER}", parse_mode="HTML", reply_markup=main_kb(uid, data["players"][uid]["xp"]))
+    
+    u = data["players"][uid]
+    text = f"{HEADER}\n🚀 <b>ПИЛОТ {u['name'].upper()}, СИСТЕМА ОНЛАЙН!</b>\n{SEP}\nЛокация: {PLANETS[u['location']]['n']}\n{FOOTER}"
+    await msg.answer(text, parse_mode=ParseMode.HTML, reply_markup=main_kb(uid, u['xp']))
 
-# --- 1. МАСШТАБНАЯ ФИЧА: МИРОВОЙ БОСС ---
-@dp.callback_query(F.data == "boss_menu")
-async def boss_menu(call: types.CallbackQuery):
-    data = load_data()
-    boss = data["boss"]
-    status = "🔴 СПИТ" if not boss["active"] else "🟣 АКТИВЕН"
-    
-    text = (f"{HEADER}\n🌋 <b>МИРОВОЙ РЕЙД: ПОЖИРАТЕЛЬ</b>\n{SEP}\n"
-            f"Статус: {status}\n"
-            f"Здоровье: {boss['hp']:,} / {boss['max_hp']:,} HP\n"
-            f"Ваш вклад: {data['players'][str(call.from_user.id)]['boss_dmg']:,} урона\n\n"
-            f"<i>Бейте босса всей Галактикой! Когда HP упадет до 0, все участники получат Кредиты и Осколки Бездны.</i>\n{FOOTER}")
-    
+# --- 1. СИСТЕМА ПЛАНЕТ ---
+@dp.callback_query(F.data == "map_menu")
+async def map_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
     b = InlineKeyboardBuilder()
-    if boss["active"]:
-        b.row(types.InlineKeyboardButton(text="💥 НАНЕСТИ УДАР", callback_data="boss_attack"))
-    elif str(call.from_user.id) == str(ADMIN_ID):
-        b.row(types.InlineKeyboardButton(text="⚡️ ПРОБУДИТЬ (АДМИН)", callback_data="boss_spawn"))
-    
+    for pid, info in PLANETS.items():
+        prefix = "✅ " if u["location"] == pid else ""
+        lock = "🔒 " if get_lvl(u["xp"]) < info["lvl"] else ""
+        b.row(types.InlineKeyboardButton(text=f"{prefix}{lock}{info['n']} (Lvl {info['lvl']})", callback_data=f"travel_{pid}"))
     b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
-    await call.message.edit_text(text, parse_mode="HTML", reply_markup=b.as_markup())
+    await call.message.edit_text(f"{HEADER}\n🌌 <b>ЗВЕЗДНАЯ КАРТА</b>\n{SEP}\nВыберите точку назначения:\n{FOOTER}", parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
 
-@dp.callback_query(F.data == "boss_spawn")
-async def boss_spawn(call: types.CallbackQuery):
-    if str(call.from_user.id) != str(ADMIN_ID): return
+@dp.callback_query(F.data.startswith("travel_"))
+async def travel_logic(call: types.CallbackQuery):
+    pid = call.data.split("_")[1]
+    uid = str(call.from_user.id)
     data = load_data()
-    data["boss"]["active"] = True
-    data["boss"]["hp"] = data["boss"]["max_hp"]
-    save_data(data)
-    await call.answer("Босс пробужден!", show_alert=True)
-    await boss_menu(call)
-
-@dp.callback_query(F.data == "boss_attack")
-async def boss_attack(call: types.CallbackQuery):
-    data = load_data(); uid = str(call.from_user.id); u = data["players"][uid]
-    if not data["boss"]["active"]: return await call.answer("Босс уже побежден!")
-    if u["durability"] < 10: return await call.answer("Корабль слишком поврежден для атаки!")
-
-    dmg = int(SHIPS[u["ship"]]["mult"] * random.randint(50, 150))
-    data["boss"]["hp"] -= dmg
-    u["boss_dmg"] += dmg
-    u["durability"] -= 2
+    u = data["players"][uid]
     
-    msg = f"💥 Вы нанесли {dmg:,} урона!"
+    if get_lvl(u["xp"]) < PLANETS[pid]["lvl"]:
+        return await call.answer("❌ Уровень слишком низок для варп-прыжка!", show_alert=True)
     
-    if data["boss"]["hp"] <= 0:
-        data["boss"]["active"] = False
-        msg = "🎉 БОСС ПОВЕРЖЕН! Награды разосланы участникам."
-        for p_id, p_data in data["players"].items():
-            if p_data["boss_dmg"] > 0:
-                reward = int(p_data["boss_dmg"] * 10)
-                p_data["money"] += reward
-                p_data["res"]["relic"] += 1
-                p_data["boss_dmg"] = 0 
-        data["boss"]["max_hp"] = int(data["boss"]["max_hp"] * 1.2) # Становится сильнее
-
+    u["location"] = pid
     save_data(data)
-    await call.answer(msg)
-    await boss_menu(call)
+    await call.answer(f"🚀 Прыжок на {PLANETS[pid]['n']} выполнен!")
+    await map_menu(call)
 
-# --- 2. РЫНОК (КОМАНДА /market И КНОПКИ) ---
+# --- 2. РЫНОК ИГРОКОВ ---
+@dp.message(Command("sell"))
+async def sell_item(msg: types.Message, command: CommandObject):
+    uid = str(msg.from_user.id)
+    data = load_data()
+    if not command.args:
+        return await msg.answer("📝 Формат: `/sell [тип_кейса] [цена]`\nПример: `/sell ultra 5000000`", parse_mode="Markdown")
+    
+    try:
+        item_type, price = command.args.split()
+        price = int(price)
+        if item_type not in CASES: raise ValueError()
+        if data["players"][uid]["items"].get(item_type, 0) < 1:
+            return await msg.answer("❌ У вас нет такого кейса в инвентаре!")
+        
+        # Забираем кейс и ставим на рынок
+        data["players"][uid]["items"][item_type] -= 1
+        data["market"].append({
+            "id": len(data["market"]),
+            "seller_id": uid,
+            "seller_name": data["players"][uid]["name"],
+            "item": item_type,
+            "price": price
+        })
+        save_data(data)
+        await msg.answer(f"✅ Вы выставили {CASES[item_type]['n']} на рынок за {price:,} CR!")
+    except:
+        await msg.answer("❌ Ошибка. Проверьте тип кейса и цену.")
+
 @dp.callback_query(F.data == "market_menu")
 async def market_menu(call: types.CallbackQuery):
-    data = load_data(); b = InlineKeyboardBuilder()
-    text = f"{HEADER}\n📈 <b>РЫНОК РЕСУРСОВ</b>\n{SEP}\n"
-    if not data["market"]: text += "Лотов нет. Выставьте лот: `/sell iron 1000`"
-    else:
-        for lot in data["market"][-10:]:
-            b.row(types.InlineKeyboardButton(text=f"🛒 {RESOURCES[lot['item']]} | {lot['price']:,} CR", callback_data=f"blot_{lot['id']}"))
+    data = load_data()
+    b = InlineKeyboardBuilder()
+    for lot in data["market"][-10:]: # Показываем последние 10 лотов
+        b.row(types.InlineKeyboardButton(
+            text=f"📦 {lot['item']} - {lot['price']:,} CR (от {lot['seller_name']})", 
+            callback_data=f"buy_lot_{lot['id']}"
+        ))
     b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
-    await call.message.edit_text(text + f"\n{FOOTER}", parse_mode="HTML", reply_markup=b.as_markup())
+    await call.message.edit_text(f"{HEADER}\n📈 <b>ГАЛАКТИЧЕСКИЙ РЫНОК</b>\n{SEP}\nЧтобы продать кейс, используй:\n`/sell [тип] [цена]`\n{FOOTER}", parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
 
-@dp.message(Command("sell"))
-async def sell_cmd(m: types.Message, command: CommandObject):
-    data = load_data(); uid = str(m.from_user.id)
-    try:
-        item, price = command.args.split()
-        price = int(price)
-        if data["players"][uid]["res"].get(item, 0) < 1: return await m.answer("У вас нет этого ресурса!")
-        data["players"][uid]["res"][item] -= 1
-        lot_id = len(data["market"]) + 1
-        data["market"].append({"id": lot_id, "seller": uid, "item": item, "price": price})
-        save_data(data); await m.answer(f"✅ Лот #{lot_id} выставлен!")
-    except: await m.answer("Используй: `/sell iron 5000` (iron, crystal, chip, relic)")
-
-@dp.callback_query(F.data.startswith("blot_"))
-async def buy_lot(call: types.CallbackQuery):
-    lid = int(call.data.split("_")[1]); data = load_data(); uid = str(call.from_user.id)
-    lot = next((l for l in data["market"] if l["id"] == lid), None)
-    if not lot: return await call.answer("Лот не найден.")
-    if data["players"][uid]["money"] < lot["price"]: return await call.answer("Мало денег!")
+@dp.callback_query(F.data.startswith("buy_lot_"))
+async def buy_lot_logic(call: types.CallbackQuery):
+    lot_id = int(call.data.split("_")[2])
+    uid = str(call.from_user.id)
+    data = load_data()
     
-    data["players"][uid]["money"] -= lot["price"]
-    data["players"][uid]["res"][lot["item"]] += 1
-    data["players"][lot["seller"]]["money"] += lot["price"]
+    lot = next((l for l in data["market"] if l["id"] == lot_id), None)
+    if not lot: return await call.answer("❌ Лот уже продан!")
+    if lot["seller_id"] == uid: return await call.answer("❌ Вы не можете купить свой товар!")
+    
+    buyer = data["players"][uid]
+    if buyer["money"] < lot["price"]: return await call.answer("❌ Недостаточно кредитов!")
+    
+    # Сделка
+    buyer["money"] -= lot["price"]
+    buyer["items"][lot["item"]] = buyer["items"].get(lot["item"], 0) + 1
+    data["players"][lot["seller_id"]]["money"] += lot["price"]
+    
     data["market"].remove(lot)
-    save_data(data); await call.answer("Покупка завершена!"); await market_menu(call)
+    save_data(data)
+    await call.answer("✅ Успешная покупка!")
+    await market_menu(call)
 
-# --- 3. PVP СИСТЕМА ---
-@dp.callback_query(F.data == "pvp_menu")
-async def pvp_menu(call: types.CallbackQuery):
-    u = load_data()["players"][str(call.from_user.id)]
-    b = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="⚔️ ИСКАТЬ БОЙ", callback_data="pvp_fight"),
-                                    types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
-    await call.message.edit_text(f"⚔️ <b>АРЕНА</b>\nПобед: {u['pvp_wins']}", reply_markup=b.as_markup(), parse_mode="HTML")
+# --- 3. ЕЖЕДНЕВНЫЕ ЗАДАНИЯ ---
+@dp.callback_query(F.data == "daily_quests")
+async def daily_quests(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    if u["last_quest_date"] != today:
+        u["last_quest_date"] = today
+        # Генерируем новые задания: (Тип, цель, текущее, награда)
+        u["dailies"] = [
+            {"t": "Победить в PVP", "goal": 1, "cur": 0, "rew": 5},
+            {"t": "Открыть кейс", "goal": 2, "cur": 0, "rew": 3},
+            {"t": "Заработать кредиты", "goal": 50000, "cur": 0, "rew": 10}
+        ]
+        save_data(data)
 
-@dp.callback_query(F.data == "pvp_fight")
-async def pvp_fight(call: types.CallbackQuery):
-    data = load_data(); uid = str(call.from_user.id); enemies = [p for p in data["players"] if p != uid]
-    if not enemies: return await call.answer("Вы один в космосе...")
+    text = f"{HEADER}\n📋 <b>ЗАДАНИЯ НА СЕГОДНЯ</b>\n{SEP}\n"
+    for q in u["dailies"]:
+        status = "✅" if q["cur"] >= q["goal"] else "⏳"
+        text += f"{status} {q['t']}: {q['cur']}/{q['goal']} (+{q['rew']} ⭐)\n"
+    text += f"\n{FOOTER}"
+    b = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+# --- 4. RPG НАВЫКИ ---
+@dp.callback_query(F.data == "skills_menu")
+async def skills_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
     
-    e_id = random.choice(enemies); u = data["players"][uid]; e = data["players"][e_id]
-    u_p = SHIPS[u["ship"]]["mult"] * random.uniform(0.8, 1.2)
-    e_p = SHIPS[e["ship"]]["mult"] * random.uniform(0.8, 1.2)
+    # Расчет доступных очков навыков (1 за уровень)
+    total_sp = get_lvl(u["xp"]) - 1
+    spent_sp = sum(u["skills"].values())
+    u["sp"] = total_sp - spent_sp
     
-    if u_p > e_p:
-        loot = int(e["money"] * 0.1); u["money"] += loot; e["money"] -= loot; u["pvp_wins"] += 1
-        res = f"🏆 Победа над {e['name']}! Забрано {loot:,} CR."
+    text = (f"{HEADER}\n🧬 <b>ВЕТКИ ТАЛАНТОВ</b>\n{SEP}\n"
+            f"Доступно очков: <b>{u['sp']}</b>\n\n"
+            f"🔴 Агрессор (Lvl {u['skills']['agg']}): +% к урону\n"
+            f"🔵 Торговец (Lvl {u['skills']['tra']}): +% к доходу\n"
+            f"🟢 Исследователь (Lvl {u['skills']['exp']}): Шанс на ресурсы\n"
+            f"{FOOTER}")
+    
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="🔴 + АГР", callback_data="up_agg"),
+          types.InlineKeyboardButton(text="🔵 + ТОРГ", callback_data="up_tra"),
+          types.InlineKeyboardButton(text="🟢 + ИССЛ", callback_data="up_exp"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+@dp.callback_query(F.data.startswith("up_"))
+async def upgrade_skill(call: types.CallbackQuery):
+    skill = call.data.split("_")[1]
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    
+    total_sp = get_lvl(u["xp"]) - 1
+    if sum(u["skills"].values()) < total_sp:
+        u["skills"][skill] += 1
+        save_data(data)
+        await call.answer("🧬 Навык улучшен!")
+        await skills_menu(call)
     else:
-        u["durability"] -= 20; res = f"💀 Поражение от {e['name']}. Корпус -20%."
-    
-    save_data(data); await call.message.edit_text(res, reply_markup=InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="ВЕРНУТЬСЯ", callback_data="pvp_menu")).as_markup())
+        await call.answer("❌ Нет свободных очков навыков!", show_alert=True)
 
-# --- 4. МАГАЗИН И КЕЙСЫ (ПОЛНЫЕ) ---
+# --- 5. КРАФТ И РЕСУРСЫ ---
+@dp.callback_query(F.data == "res_menu")
+async def res_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+    text = f"{HEADER}\n🎒 <b>СКЛАД РЕСУРСОВ</b>\n{SEP}\n"
+    for rid, name in RESOURCES.items():
+        text += f"{name}: {u['res'].get(rid, 0)}\n"
+    text += f"\n<b>РЕЦЕПТ ТВОРЦА:</b>\n"
+    text += f"❤️ Сердца: {u['res'].get('heart', 0)}/10\n"
+    text += f"📜 Чертежи: {u['res'].get('blueprint', 0)}/1\n"
+    text += f"{FOOTER}"
+    b = InlineKeyboardBuilder()
+    if u['res'].get('heart', 0) >= 10 and u['res'].get('blueprint', 0) >= 1:
+        b.row(types.InlineKeyboardButton(text="✨ СОБРАТЬ ТВОРЦА", callback_data="craft_creator"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+# ===================== [ ОБНОВЛЕННАЯ ИГРОВАЯ ЛОГИКА ] =====================
+
+@dp.callback_query(F.data == "game_go")
+async def game_go(call: types.CallbackQuery):
+    phrase = random.choice(PHRASES)
+    global_tasks[str(call.from_user.id)] = phrase
+    text = f"{HEADER}\n🧩 <b>КВАНТОВЫЙ СИНТЕЗ</b>\n{SEP}\nСкопируйте фразу ниже:\n\n<code>{phrase}</code>\n{FOOTER}"
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML)
+
+# --- СИСТЕМА ПИТОМЦЕВ ---
+@dp.callback_query(F.data == "pets_menu")
+async def pets_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    
+    # Если в старой базе нет ключа pets, добавляем
+    if "pets" not in u: u["pets"] = []
+    if "active_pet" not in u: u["active_pet"] = None
+
+    text = f"{HEADER}\n🐾 <b>ЦЕНТР ГЕНЕТИКИ</b>\n{SEP}\n"
+    if u["active_pet"]:
+        pet = PETS[u["active_pet"]]
+        text += f"У вас сейчас: <b>{pet['n']}</b>\nБонус: {pet['desc']}\n\n"
+    else:
+        text += "У вас пока нет активного спутника.\n\n"
+    
+    text += "Доступные существа для покупки:\n"
+    text += f"{FOOTER}"
+    
+    b = InlineKeyboardBuilder()
+    for pid, info in PETS.items():
+        if pid in u["pets"]:
+            status = "✅ Выбрать" if u["active_pet"] != pid else "🌟 АКТИВЕН"
+            b.row(types.InlineKeyboardButton(text=f"{info['n']} ({status})", callback_data=f"select_pet_{pid}"))
+        else:
+            price_text = f"{info['price_cr']:,} CR" if info["price_cr"] > 0 else f"{info['price_stars']} ⭐"
+            b.row(types.InlineKeyboardButton(text=f"{info['n']} — {price_text}", callback_data=f"buy_pet_{pid}"))
+            
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+@dp.callback_query(F.data.startswith("buy_pet_"))
+async def buy_pet_logic(call: types.CallbackQuery):
+    pid = call.data.split("_")[2]
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    pet = PETS[pid]
+    
+    if "pets" not in u: u["pets"] = []
+    
+    # Проверка валюты
+    if pet["price_cr"] > 0:
+        if u["money"] < pet["price_cr"]:
+            return await call.answer("❌ Недостаточно кредитов!", show_alert=True)
+        u["money"] -= pet["price_cr"]
+    else:
+        if u["stars"] < pet["price_stars"]:
+            return await call.answer("❌ Недостаточно звезд!", show_alert=True)
+        u["stars"] -= pet["price_stars"]
+        
+    u["pets"].append(pid)
+    u["active_pet"] = pid
+    save_data(data)
+    await call.answer(f"🎉 {pet['n']} теперь ваш спутник!")
+    await pets_menu(call)
+
+@dp.callback_query(F.data.startswith("select_pet_"))
+async def select_pet_logic(call: types.CallbackQuery):
+    pid = call.data.split("_")[2]
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    await msg.answer(f"{HEADER}\n🚀 <b>ПИЛОТ {u['name'].upper()}, СИСТЕМА ОНЛАЙН!</b>\n{SEP}\nДоступ разрешен.\n{FOOTER}", parse_mode=ParseMode.HTML, reply_markup=main_kb(uid, u['xp']))
+    
+    u["active_pet"] = pid
+    save_data(data)
+    await call.answer(f"🐾 Вы призвали {PETS[pid]['n']}!")
+    await pets_menu(call)
+    
+@dp.message()
+async def message_handler(m: types.Message):
+    uid = str(m.from_user.id)
+    data = load_data()
+    if uid not in data["players"]: return
+
+    if uid in global_tasks and m.text == global_tasks[uid]:
+        u = data["players"][uid]
+        if u["durability"] <= 5: return await m.answer("🧨 <b>Критическая поломка!</b>", parse_mode="HTML")
+        
+        # Модификаторы навыков
+        income_mod = 1.0 + (u["skills"]["tra"] * 0.05)
+        xp_mod = 1.0 + (u["skills"]["exp"] * 0.03)
+        loc_mult = PLANETS[u["location"]]["mult"]
+        
+        # --- БОНУСЫ ПИТОМЦА ---
+        pet_money_mod = 1.0
+        pet_xp_mod = 1.0
+        if u.get("active_pet"):
+            pet_money_mod = PETS[u["active_pet"]]["b_money"]
+            pet_xp_mod = PETS[u["active_pet"]]["b_xp"]
+        # ----------------------
+
+        rew = int(random.randint(300, 700) * SHIPS[u["ship"]]["mult"] * loc_mult * income_mod * pet_money_mod)
+        xp_rew = int(30 * xp_mod * loc_mult * pet_xp_mod)
+        
+        u["money"] += rew
+        u["xp"] += xp_rew
+        u["durability"] -= 1
+        
+        # Шанс найти ресурс (увеличивается, если есть крутой питомец)
+        luck_mod = 1.1 if u.get("active_pet") == "alien_cat" else 1.0
+        if random.random() < (0.1 + u["skills"]["exp"] * 0.02) * luck_mod:
+            res_type = random.choice(["iron", "crystal", "chip"])
+            u["res"][res_type] += 1
+            await m.answer(f"📦 {PETS[u['active_pet']]['n'] if u.get('active_pet') else 'Вы'} нашли ресурс: {RESOURCES[res_type]}!")
+
+        # Прогресс дейлика
+        for q in u.get("dailies", []):
+            if q["t"] == "Заработать кредиты": q["cur"] = min(q["goal"], q["cur"] + rew)
+
+        save_data(data)
+        del global_tasks[uid]
+        await m.answer(f"✅ <b>СИНТЕЗ ЗАВЕРШЕН</b>\n+{rew:,} CR | +{xp_rew} XP", parse_mode="HTML", reply_markup=main_kb(uid, u['xp']))
+# --- ПОВТОР ОСТАЛЬНЫХ ФУНКЦИЙ ДЛЯ ЦЕЛОСТНОСТИ ---
+
+@dp.callback_query(F.data == "view_profile")
+async def profile(call: types.CallbackQuery):
+    uid = str(call.from_user.id); u = load_data()["players"][uid]
+    lvl = get_lvl(u['xp']); next_xp = (lvl * 2)**2
+async def view_profile(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+    lvl = get_lvl(u['xp'])
+    next_xp = (lvl * 2)**2
+    bar = progress_bar(u['xp'], next_xp)
+    text = (f"{HEADER}\n👤 <b>ПРОФИЛЬ:</b> {u['name']}\n{SEP}\n"
+            f"📊 <b>Lvl:</b> {lvl}\n🧪 <b>XP:</b> {bar} ({u['xp']}/{next_xp})\n"
+            f"💰 <b>Баланс:</b> {u['money']:,} CR\n🛸 <b>Корабль:</b> {SHIPS[u['ship']]['name']}\n{FOOTER}")
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=main_kb(uid, u['xp']))
+            f"📊 LVL: {lvl} | XP: {u['xp']:,}/{next_xp:,}\n[{bar}]\n"
+            f"💰 CR: {u['money']:,} | ⭐ STARS: {u['stars']}\n"
+            f"🛸 КОРАБЛЬ: {SHIPS[u['ship']]['name']}\n"
+            f"🔧 КОРПУС: {u['durability']}%\n"
+            f"🌍 МЕСТО: {PLANETS[u['location']]['n']}\n{FOOTER}")
+    b = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
 @dp.callback_query(F.data == "open_shop")
 async def open_shop(call: types.CallbackQuery):
-    u = load_data()["players"][str(call.from_user.id)]; b = InlineKeyboardBuilder()
-    for k, v in list(SHIPS.items())[1:]: # Кроме шаттла
-        status = "✅" if k in u["inventory"] else f"{v['price']:,} CR"
-        b.row(types.InlineKeyboardButton(text=f"{v['name']} ({status})", callback_data=f"buy_ship_{k}"))
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+    b = InlineKeyboardBuilder()
+    for key, val in SHIPS.items():
+        if key == "shuttle" or key == "creator": continue
+        status = "✅" if key in u["inventory"] else f"{val['price']:,} CR"
+        if get_lvl(u['xp']) >= val['lvl'] or key in u["inventory"]:
+            b.row(types.InlineKeyboardButton(text=f"{val['name']} ({status})", callback_data=f"buy_ship_{key}"))
     b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
-    await call.message.edit_text("🛒 <b>ВЕРФЬ ГАЛАКТИКИ</b>", reply_markup=b.as_markup(), parse_mode="HTML")
+    await call.message.edit_text("🛒 <b>ВЕРФЬ ГАЛАКТИКИ</b>", parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
 
 @dp.callback_query(F.data.startswith("buy_ship_"))
 async def buy_ship_logic(call: types.CallbackQuery):
-    sid = call.data.split("_")[2]; data = load_data(); u = data["players"][str(call.from_user.id)]
-    if sid in u["inventory"]: 
-        u["ship"] = sid
-        await call.answer("Корабль выбран!")
-    elif u["money"] >= SHIPS[sid]["price"]:
-        u["money"] -= SHIPS[sid]["price"]; u["inventory"].append(sid); u["ship"] = sid
-        await call.answer("Успешная покупка!")
-    else: return await call.answer("Недостаточно средств!")
-    save_data(data); await open_shop(call)
+    ship_key = call.data.split("_")[2]
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    if ship_key in u["inventory"]: return await call.answer("Уже есть!")
+    if u["money"] >= SHIPS[ship_key]["price"]:
+        u["money"] -= SHIPS[ship_key]["price"]
+        u["inventory"].append(ship_key)
+        u["ship"] = ship_key
+        save_data(data)
+        await call.answer("Корабль куплен!")
+        await open_shop(call)
+    else: await call.answer("Нет денег!")
 
 @dp.callback_query(F.data == "cases_menu")
+async def cases_ui(call: types.CallbackQuery):
 async def cases_menu(call: types.CallbackQuery):
     b = InlineKeyboardBuilder()
-    for k, v in CASES.items():
-        b.row(types.InlineKeyboardButton(text=f"{v['n']} | {v['p']:,} CR", callback_data=f"opencase_{k}"))
+    for cid, info in CASES.items():
+        b.row(types.InlineKeyboardButton(text=f"{info['n']} ({info['p']:,} CR)", callback_data=f"open_case_{cid}"))
+        b.row(types.InlineKeyboardButton(text=f"{info['n']} — {info['p']:,} CR", callback_data=f"open_case_{cid}"))
     b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
-    await call.message.edit_text("📦 <b>КОНТЕЙНЕРНЫЙ ТЕРМИНАЛ</b>", reply_markup=b.as_markup(), parse_mode="HTML")
+    await call.message.edit_text(f"{HEADER}\n📦 <b>МАГАЗИН КЕЙСОВ</b>\n{SEP}\nВыбери контейнер:\n{FOOTER}", parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+    await call.message.edit_text("📦 <b>ТЕРМИНАЛ ПОСТАВОК</b>", parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
 
-@dp.callback_query(F.data.startswith("opencase_"))
+@dp.callback_query(F.data.startswith("open_case_"))
 async def open_case(call: types.CallbackQuery):
-    cid = call.data.split("_")[1]; data = load_data(); u = data["players"][str(call.from_user.id)]
-    if u["money"] < CASES[cid]["p"]: return await call.answer("Недостаточно кредитов!")
+    cid = call.data.split("_")[2]; uid = str(call.from_user.id); data = load_data(); u = data["players"][uid]
+    info = CASES[cid]
+    if u["money"] < info["p"]: return await call.answer("❌ Недостаточно средств!", show_alert=True)
+    u["money"] -= info["p"]
+    mr = random.randint(*info["drop"]["money"]); xr = random.randint(*info["drop"]["xp"])
+    u["money"] += mr; u["xp"] += xr; save_data(data)
+    await call.message.answer(f"📦 {info['n']} ОТКРЫТ!\n{SEP}\nНаграда: +{mr:,} CR | +{xr} XP", parse_mode=ParseMode.HTML)
+    await cases_ui(call)
+async def open_case_logic(call: types.CallbackQuery):
+    cid = call.data.split("_")[2]
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    if u["money"] < CASES[cid]["p"]: return await call.answer("Нет денег!")
+    
     u["money"] -= CASES[cid]["p"]
-    m = random.randint(*CASES[cid]["drop"]["money"]); x = random.randint(*CASES[cid]["drop"]["xp"])
-    u["money"] += m; u["xp"] += x
-    save_data(data); await call.answer(f"📦 Выпало: {m:,} CR и {x} XP!", show_alert=True); await cases_menu(call)
+    m_rew = random.randint(*CASES[cid]["drop"]["money"])
+    u["money"] += m_rew
+    
+    # Шанс на редкие ресурсы из кейсов
+    if random.random() < 0.05: u["res"]["heart"] += 1; await call.answer("🔥 ВЫПАЛО СЕРДЦЕ ЗВЕЗДЫ!", show_alert=True)
+    if random.random() < 0.02: u["res"]["blueprint"] += 1; await call.answer("📜 ВЫПАЛ ЧЕРТЕЖ ТВОРЦА!", show_alert=True)
+    
+    save_data(data)
+    await call.answer(f"Выпало: {m_rew:,} CR")
+    await cases_menu(call)
 
-# --- 5. СЕРВИС И ПРОФИЛЬ ---
+@dp.callback_query(F.data == "game_go")
+async def game_start(call: types.CallbackQuery):
+    phrase = random.choice(PHRASES); global_tasks[str(call.from_user.id)] = phrase
+    await call.message.edit_text(f"{HEADER}\n🧩 <b>СИНТЕЗ:</b>\n<code>{phrase}</code>", parse_mode=ParseMode.HTML)
 @dp.callback_query(F.data == "service_menu")
 async def service_menu(call: types.CallbackQuery):
-    u = load_data()["players"][str(call.from_user.id)]
-    b = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="🔧 ПОЧИНИТЬ (1000 CR)", callback_data="repair_full"),
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+    b = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="🔧 ПОЧИНИТЬ (500 CR)", callback_data="repair_ship"),
                                     types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
-    await call.message.edit_text(f"🛠 <b>ТЕХ-ОБСЛУЖИВАНИЕ</b>\nСостояние корпуса: {u['durability']}%", reply_markup=b.as_markup(), parse_mode="HTML")
-
-@dp.callback_query(F.data == "repair_full")
-async def repair_full(call: types.CallbackQuery):
-    data = load_data(); u = data["players"][str(call.from_user.id)]
-    if u["money"] >= 1000:
-        u["money"] -= 1000; u["durability"] = 100; save_data(data); await call.answer("Корабль как новый!")
-    else: await call.answer("Мало кредитов!")
-    await service_menu(call)
-
-@dp.callback_query(F.data == "view_profile")
-async def view_profile(call: types.CallbackQuery):
-    u = load_data()["players"][str(call.from_user.id)]; lvl = get_lvl(u["xp"])
-    res_str = "\n".join([f"{RESOURCES[k]}: {v}" for k, v in u["res"].items() if v > 0])
-    text = (f"{HEADER}\n👤 <b>ПРОФИЛЬ ПИЛОТА</b>\n{SEP}\n"
-            f"Имя: {u['name']}\nУровень: {lvl} ({u['xp']:,} XP)\n"
-            f"Баланс: {u['money']:,} CR\nКорабль: {SHIPS[u['ship']]['name']}\n"
-            f"Прочность: {u['durability']}%\nПобед в PVP: {u['pvp_wins']}\n\n"
-            f"<b>РЕСУРСЫ:</b>\n{res_str if res_str else 'Пусто'}\n{FOOTER}")
-    await call.message.edit_text(text, parse_mode="HTML", reply_markup=InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main")).as_markup())
-
-# --- 6. ИГРОВАЯ ЛОГИКА (СИНТЕЗ) ---
-@dp.callback_query(F.data == "game_go")
-async def game_go(call: types.CallbackQuery):
-    phrase = random.choice(["СИНТЕЗ", "КВАНТ", "ОМЕГА", "ЗВЕЗДА", "АТОМ"])
-    global_tasks[str(call.from_user.id)] = phrase
-    await call.message.edit_text(f"🧩 Введите проверочный код: <code>{phrase}</code>", parse_mode="HTML")
+    await call.message.edit_text(f"🔧 СОСТОЯНИЕ: {u['durability']}%", reply_markup=b.as_markup())
 
 @dp.message()
-async def game_msg_handler(m: types.Message):
+async def game_logic(m: types.Message):
     uid = str(m.from_user.id); data = load_data()
-    if uid in global_tasks and m.text.upper() == global_tasks[uid]:
+    if uid in global_tasks and m.text == global_tasks[uid]:
         u = data["players"][uid]
+        if u["durability"] <= 5: return await m.answer("🛠 Корабль слишком поврежден!")
         rew = int(random.randint(200, 500) * SHIPS[u["ship"]]["mult"])
-        u["money"] += rew; u["xp"] += 35; u["durability"] -= 1
-        del global_tasks[uid]
-        if random.random() < 0.1: 
-            u["res"]["iron"] += 1; await m.answer("⛓ Найдено Железо!")
-        save_data(data)
-        await m.answer(f"✅ Синтез успешен: +{rew:,} CR", reply_markup=main_kb(uid, u["xp"]))
+        u["money"] += rew; u["xp"] += 20; u["durability"] -= 1
+        save_data(data); del global_tasks[uid]
+        await m.answer(f"✅ +{rew:,} CR | +20 XP", reply_markup=main_kb(uid, u['xp']))
+@dp.callback_query(F.data == "repair_ship")
+async def repair_ship(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    if u["money"] >= 500:
+        u["money"] -= 500; u["durability"] = 100
+        save_data(data); await call.answer("Починено!"); await service_menu(call)
+    else: await call.answer("Нет денег!")
+
+@dp.callback_query(F.data == "pvp_menu")
+async def pvp_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+    b = InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="⚔️ ИСКАТЬ БОЙ", callback_data="pvp_go"),
+                                    types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    await call.message.edit_text(f"⚔️ АРЕНА (Побед: {u['pvp_wins']})", reply_markup=b.as_markup())
+
+@dp.callback_query(F.data == "pvp_go")
+async def pvp_go(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    if random.random() > 0.5:
+        u["pvp_wins"] += 1; u["xp"] += 500
+        res = "ПОБЕДА! +500 XP"
+    else:
+        u["durability"] -= 20
+        res = "ПОРАЖЕНИЕ! -20% Корпуса"
+    save_data(data)
+    await call.message.edit_text(res, reply_markup=InlineKeyboardBuilder().row(types.InlineKeyboardButton(text="Назад", callback_data="pvp_menu")).as_markup())
 
 @dp.callback_query(F.data == "back_main")
 async def back_main(call: types.CallbackQuery):
-    u = load_data()["players"][str(call.from_user.id)]
-    await call.message.edit_text(f"{HEADER}\n🚀 <b>ГЛАВНЫЙ МОСТИК</b>\n{SEP}\nСистемы в норме.\n{FOOTER}", parse_mode="HTML", reply_markup=main_kb(str(call.from_user.id), u["xp"]))
+    await start(call.message)
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+    await call.message.edit_text(f"{HEADER}\n🚀 <b>ГЛАВНЫЙ ТЕРМИНАЛ</b>\n{SEP}\nОжидание команд...\n{FOOTER}", parse_mode=ParseMode.HTML, reply_markup=main_kb(uid, u['xp']))
 
 # ===================== [ ЗАПУСК ] =====================
 async def main():
-    print("💎 OMEGA-SYSTEM V6.0 STARTED")
+    # Очистка очереди обновлений, чтобы бот не «лагал» после рестарта
+    print("💎 ALMAZ-SYSTEM V3.0 ONLINE")
     await bot.delete_webhook(drop_pending_updates=True)
+    print("🤖 OMEGA-SYSTEM запущен успешно!")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Бот остановлен.")
     asyncio.run(main())
-
