@@ -976,8 +976,7 @@ async def achievements(call: types.CallbackQuery):
     if locked:
         text += f"\n<u>Неоткрытые:</u>\n"
         for a in locked:
-            text += f!⚪ {a['name']}: {a['desc']} (+{a['reward']})\n"
-
+           text += f"⚪ {a['name']}: {a['desc']} (+{a['reward']})\n"
     text += f"{FOOTER}"
 
     b = InlineKeyboardBuilder()
@@ -2594,6 +2593,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
