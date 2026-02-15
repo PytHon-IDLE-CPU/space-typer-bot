@@ -168,8 +168,9 @@ RESOURCES = {
     "blueprint": "📜 Чертеж Творца"
 }
 
-
-  SHIPS = {
+SHIPS = {  # ← Теперь без отступа
+    # ваши элементы SHIPS
+}
     "shuttle": {
         "name": "🛸 «Бродяга»",
         "price": 0,
@@ -2596,3 +2597,4 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
