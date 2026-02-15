@@ -852,8 +852,8 @@ async def tune_ship(call: types.CallbackQuery):
         f"Стоимость за очко: <b>{format_number(cost_per_point)}</b> 💵\n\n"
         f"<u>Текущие параметры:</u>\n"
         f"⚙️ Двигатель: +{u['tuning']['eng'] * 5}% скорости\n"
-        f⚔ Атака: +{u['tuning']['atk'] * 10}% урона\n"
-        f🛡 Защита: +{u['tuning']['def'] * 15}% брони\n"
+        f"⚔ Атака: +{u['tuning']['atk'] * 10}% урона\n"
+        f"🛡 Защита: +{u['tuning']['def'] * 15}% брони\n"
         f"{FOOTER}"
     )
 
@@ -2594,6 +2594,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
