@@ -159,7 +159,6 @@ PLANETS = {
     "void": {"n": "🕳 Пустота", "lvl": 50, "desc": "Искажение реальности. Опасно.", "mult": 5.0}
 }
 
-
 RESOURCES = {
     "iron": "⛓ Железо",
     "crystal": "💎 Кристалл",
@@ -168,9 +167,7 @@ RESOURCES = {
     "blueprint": "📜 Чертеж Творца"
 }
 
-SHIPS = {  # ← Теперь без отступа
-    # ваши элементы SHIPS
-}
+SHIPS = {
     "shuttle": {
         "name": "🛸 «Бродяга»",
         "price": 0,
@@ -2597,4 +2594,5 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
