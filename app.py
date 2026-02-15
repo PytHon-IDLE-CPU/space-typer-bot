@@ -2435,7 +2435,7 @@ async def help_menu(call: types.CallbackQuery):
         "<u>Основные разделы:</u>\n\n"
         "• <b>Управление</b>: как взаимодействовать с ботом.\n"
         "• <b>Механики игры</b>: объяснение ключевых систем.\n"
-        "• <b>Советы</b>:
+        "• <b>Советы</b>:"
         "• <b>Частые вопросы</b>: ответы на популярные вопросы.\n\n"
         f"{FOOTER}"
     )
@@ -2593,5 +2593,6 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
