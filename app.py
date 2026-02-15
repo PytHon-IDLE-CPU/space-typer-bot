@@ -1709,8 +1709,14 @@ async def join_event(call: types.CallbackQuery):
         else:
             u[res] += amount
             if res == "success":  # Теперь условие полное
-    if res == "money":
-    print("Получены деньги!")
+   res = "money"
+balance = 0
+
+if res == "money":
+    balance += 500
+    print(f"Баланс: {balance} монет")
+else:
+    print("Операция не распознана")
         msg += f"+ {format_number(amount)} 💵\n"
     elif res == "xp":
         msg += f"+ {amount} XP\n"
@@ -2594,6 +2600,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
