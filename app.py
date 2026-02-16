@@ -10,7 +10,7 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.fsm.context import FContext
+from aiogram.fsm.context import FSMContext
 
 # --- НАСТРОЙКИ ---
 TOKEN = "BOT_TOKEN"
@@ -890,4 +890,5 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("--- [ SYSTEM OFFLINE ] ---")
+
 
