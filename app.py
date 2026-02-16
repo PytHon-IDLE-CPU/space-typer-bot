@@ -1685,35 +1685,53 @@ async def global_events(call: types.CallbackQuery):
 
 @dp.callback_query(F.data == "join_event")
 async def join_event(call: types.CallbackQuery):
-    # Случайное событие и награда
     rewards = [
         {"money": 1000, "xp": 50},
         {"iron": 20, "crystal": 5},
         {"stars": 3, "money": 500},
-        {"chip": 1, "money": 2000}  # Редкий чип
+        {"chip": 1, "money": 2000}
     ]
+
     reward = random.choice(rewards)
 
     uid = str(call.from_user.id)
     data = load_data()
+
+    if uid not in data["players"]:
+        await call.answer("Сначала используйте /start", show_alert=True)
+        return
+
     u = data["players"][uid]
 
     msg = "<b>Вы приняли участие в глобальном событии!</b>\n\nНаграды:\n"
+
     for res, amount in reward.items():
+
+        # Если это ресурс (железо, кристалл и т.д.)
         if res in RESOURCES:
+            u.setdefault("res", {})
             u["res"][res] = u["res"].get(res, 0) + amount
-            msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
- else:
-    u[res] += amount
+            msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
 
-# Инициализируем msg, если ещё не сделано
-msg = ""
+        # Если это обычные параметры игрока
+        else:
+            u[res] = u.get(res, 0) + amount
 
-for res, amount in reward.items():
-    if res in RESOURCES:
-        # Гарантируем, что u["res"] существует
-        if "res" not in u:
-            u["res"] = {}
+            if res == "money":
+                msg += f"+ {format_number(amount)} 💵\n"
+            elif res == "xp":
+                msg += f"+ {amount} XP\n"
+            elif res == "stars":
+                msg += f"+ {amount} ⭐\n"
+
+    save_data(data)
+
+    await call.message.edit_text(
+        msg,
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
         u["res"][res] = u["res"].get(res, 0) + amount
         msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
 
@@ -2614,6 +2632,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
