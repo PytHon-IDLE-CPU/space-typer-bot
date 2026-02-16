@@ -1703,10 +1703,17 @@ async def join_event(call: types.CallbackQuery):
         if res in RESOURCES:
             u["res"][res] = u["res"].get(res, 0) + amount
             msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
-        else:
-            u[res] += amount
-        for res, amount in reward.items():
+ else:
+    u[res] += amount
+
+# Инициализируем msg, если ещё не сделано
+msg = ""
+
+for res, amount in reward.items():
     if res in RESOURCES:
+        # Гарантируем, что u["res"] существует
+        if "res" not in u:
+            u["res"] = {}
         u["res"][res] = u["res"].get(res, 0) + amount
         msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
 
@@ -2607,6 +2614,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
