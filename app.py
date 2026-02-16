@@ -1731,7 +1731,9 @@ async def join_event(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=back_kb()
     )
-        u["res"][res] = u["res"].get(res, 0) + amount
+        def add_resource(u, res, amount):
+        u["res"][res] = u["res"].get(res, 0) + amount  # ❌ Not indented properly
+
         msg += f"+ {format_number(amount)}{RESOURCES[res]}\n"
 
     elif res == "money":
@@ -2631,6 +2633,7 @@ async def back_main(call: types.CallbackQuery):
         parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
+
 
 
 
