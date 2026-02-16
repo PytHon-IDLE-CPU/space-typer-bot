@@ -159,6 +159,7 @@ PLANETS = {
     "void": {"n": "🕳 Пустота", "lvl": 50, "desc": "Искажение реальности. Опасно.", "mult": 5.0}
 }
 
+
 RESOURCES = {
     "iron": "⛓ Железо",
     "crystal": "💎 Кристалл",
@@ -167,7 +168,8 @@ RESOURCES = {
     "blueprint": "📜 Чертеж Творца"
 }
 
-SHIPS = {
+
+  SHIPS = {
     "shuttle": {
         "name": "🛸 «Бродяга»",
         "price": 0,
@@ -852,8 +854,8 @@ async def tune_ship(call: types.CallbackQuery):
         f"Стоимость за очко: <b>{format_number(cost_per_point)}</b> 💵\n\n"
         f"<u>Текущие параметры:</u>\n"
         f"⚙️ Двигатель: +{u['tuning']['eng'] * 5}% скорости\n"
-        f"⚔ Атака: +{u['tuning']['atk'] * 10}% урона\n"
-        f"🛡 Защита: +{u['tuning']['def'] * 15}% брони\n"
+        f!⚔ Атака: +{u['tuning']['atk'] * 10}% урона\n"
+        f!🛡 Защита: +{u['tuning']['def'] * 15}% брони\n"
         f"{FOOTER}"
     )
 
@@ -976,7 +978,8 @@ async def achievements(call: types.CallbackQuery):
     if locked:
         text += f"\n<u>Неоткрытые:</u>\n"
         for a in locked:
-           text += f"⚪ {a['name']}: {a['desc']} (+{a['reward']})\n"
+            text += f!⚪ {a['name']}: {a['desc']} (+{a['reward']})\n"
+
     text += f"{FOOTER}"
 
     b = InlineKeyboardBuilder()
@@ -1152,14 +1155,14 @@ async def casino_wheel(call: types.CallbackQuery):
         msg = f"💰 Вы выиграли {format_number(result['amount'])} 💵!"
     elif result["type"] == "xp":
         u["xp"] += result["amount"]
-        msg = f"🧠 Вы получили {result['amount']} XP!"
+        msg = f!🧠 Вы получили {result['amount']} XP!"
     elif result["type"] == "stars":
         u["stars"] += result["amount"]
-        msg = f"⭐ Вы получили {result['amount']} ⭐!"
+        msg = f!⭐ Вы получили {result['amount']} ⭐!"
     elif result["type"] == "jackpot":
         jackpot = random.randint(1000, 5000)
         u["money"] += jackpot
-        msg = f"🎉 ДЖЕКПОТ! Вы выиграли {format_number(jackpot)} 💵!"
+        msg = f!🎉 ДЖЕКПОТ! Вы выиграли {format_number(jackpot)} 💵!"
 
     save_data(data)  # Сохраняем изменения
 
@@ -1246,7 +1249,7 @@ async def casino_jackpot(call: types.CallbackQuery):
         jackpot_amount = random.randint(50000, 200000)
         u["money"] += jackpot_amount
         msg = (
-            f"💥 ДЖЕКПОТ! ВЫ ВЫИГРАЛИ!\n\n"
+            f!💥 ДЖЕКПОТ! ВЫ ВЫИГРАЛИ!\n\n"
             f"<b>{format_number(jackpot_amount)} 💵</b>\n\n"
             "Поздравляем! Это крупная удача!"
         )
@@ -1423,6 +1426,9 @@ async def confirm_sell(call: types.CallbackQuery):
         "timestamp": datetime.now().isoformat()
     }
     data["market"].append(offer)
+    save_data(data)
+
+    # Уменьшаем количество ресурса у продавца
     u["res"][rid] -= amount
     save_data(data)
 
@@ -1477,7 +1483,7 @@ async def market_buy(call: types.CallbackQuery):
         text += (
             f"{i+1}. {res_name}: {format_number(offer['amount'])} шт.\n"
             f"   Цена: {format_number(offer['price'])} 💵/шт.\n"
-            f"   Продавец: {offer['seller_name']}\n\n"
+            f!   Продавец: {offer['seller_name']}\n\n"
         )
         b.row(types.InlineKeyboardButton(
             text=f"Купить #{i+1}",
@@ -1491,7 +1497,7 @@ async def market_buy(call: types.CallbackQuery):
 async def buy_offer(call: types.CallbackQuery):
     offer_idx = int(call.data.split("_")[2])
     data = load_data()
-    offers = data.get("market", [])
+    offers = data["market"]
 
     if offer_idx >= len(offers):
         await call.answer("Предложение не найдено!", show_alert=True)
@@ -1595,9 +1601,701 @@ async def search_resources(call: types.CallbackQuery):
     await call.message.edit_text(
         f"{HEADER}\n<b>🔍 ПОИСК РЕСУРСОВ</b>\n{SEP}\n{msg}\n{FOOTER}",
         parse_mode=ParseMode.HTML,
-        reply_markup=back_kb()   
+        reply_markup=back_kb()
     )
-# --- 19. МАГАЗИН (исправленный шаблон) ---
+
+@dp.callback_query(F.data == "upgrade_storage")
+async def upgrade_storage(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+    current_cap = u["storage_capacity"]
+    next_cap = current_cap + 10
+    cost = next_cap * 500  # Чем больше вместимость, тем дороже улучшение
+
+
+    if u["money"] < cost:
+        await call.answer(
+            f"❌ Недостаточно средств!\n"
+            f!Требуется: {format_number(cost)} 💵\n"
+            f!У вас: {format_number(u['money'])} 💵",
+            show_alert=True
+        )
+        await storage_menu(call)
+        return
+
+    u["money"] -= cost
+    u["storage_capacity"] = next_cap
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n✅ Склад улучшен!\n\n"
+        f"Новая вместимость: {next_cap} ед.\n"
+        f!Затраты: {format_number(cost)} 💵\n"
+        f"{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+# --- 14. ГЛОБАЛЬНЫЕ СОБЫТИЯ (редкие ивенты) ---
+@dp.callback_query(F.data == "global_events")
+async def global_events(call: types.CallbackQuery):
+    # Имитация глобальных событий (на основе времени/случайности)
+    events = [
+        {
+            "name": "Метеоритный дождь",
+            "desc": "В атмосфере планеты обнаружены метеориты, богатые редкими минералами!",
+            "reward": {"iron": 50, "crystal": 10},
+            "duration": "24 часа"
+        },
+        {
+            "name": "Космический шторм",
+            "desc": "Энергетический шторм повышает шанс выпадения редких предметов из кейсов!",
+            "reward": {"multiplier": 2},  # Удвоение дропа
+            "duration": "12 часов"
+        },
+        {
+            "name": "Торговое окно",
+            "desc": "Открыт временный торговый маршрут с повышенной прибылью!",
+            "reward": {"market_bonus": 1.5},  # +50% к доходам на рынке
+            "duration": "6 часов"
+        }
+    ]
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>🌌 ГЛОБАЛЬНЫЕ СОБЫТИЯ</b>\n"
+        f"{SEP}\n"
+        "<u>Текущие события:</u>\n\n"
+    )
+
+    for event in events:
+        text += (
+            f"<b>{event['name']}</b>\n"
+            f"{event['desc']}\n"
+            f"Длительность: {event['duration']}\n\n"
+        )
+
+    text += (
+        "Участвуйте в событиях, чтобы получить уникальные награды!\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="🎯 Принять участие", callback_data="join_event"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+@dp.callback_query(F.data == "join_event")
+async def join_event(call: types.CallbackQuery):
+    # Случайное событие и награда
+    rewards = [
+        {"money": 1000, "xp": 50},
+        {"iron": 20, "crystal": 5},
+        {"stars": 3, "money": 500},
+        {"chip": 1, "money": 2000}  # Редкий чип
+    ]
+    reward = random.choice(rewards)
+
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+    msg = "<b>Вы приняли участие в глобальном событии!</b>\n\nНаграды:\n"
+    for res, amount in reward.items():
+        if res in RESOURCES:
+            u["res"][res] = u["res"].get(res, 0) + amount
+            msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
+        else:
+            u[res] += amount
+            if res ==
+    if res == "money":
+        msg += f"+ {format_number(amount)} 💵\n"
+    elif res == "xp":
+        msg += f"+ {amount} XP\n"
+    elif res == "stars":
+        msg += f"+ {amount} ⭐\n"
+    elif res == "chip":
+        msg += f"+ 1 🔬 Редкий чип\n"
+
+    msg += "\nСпасибо за участие в событии!"
+
+
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n{msg}\n{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+# --- 15. ПРОФИЛЬ ИГРОКА ---
+@dp.callback_query(F.data == "player_profile")
+async def player_profile(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+
+
+    lvl = get_lvl(u["xp"])
+    next_lvl_xp = get_next_lvl_xp(lvl)
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>👤 ПРОФИЛЬ ИГРОКА</b>\n"
+        f"{SEP}\n"
+        f"<b>Имя:</b> {u['name']}\n"
+        f"<b>Уровень:</b> {lvl}\n"
+        f"<b>Опыт:</b> {u['xp']} / {next_lvl_xp}\n"
+        f"<b>Деньги:</b> {format_number(u['money'])} 💵\n"
+        f"<b>Звёзды:</b> {u['stars']} ⭐\n"
+        f"<b>Победы в PvP:</b> {u['pvp_wins']}\n"
+        f"<b>Улучшения корабля:</b> {sum(u['tuning'].values())}\n"
+        f"<b>Вместимость склада:</b> {u['storage_capacity']} ед.\n"
+        "\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="📊 Статистика", callback_data="player_stats"))
+    b.row(types.InlineKeyboardButton(text="⚙️ Настройки", callback_data="player_settings"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "player_stats")
+async def player_stats(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+
+
+    total_resources = sum(u["res"].values())
+    total_spent = u.get("total_money_spent", 0)
+    total_earned = u.get("total_money_earned", 0)
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>📊 СТАТИСТИКА ИГРОКА</b>\n"
+        f"{SEP}\n"
+        f"<b>Всего ресурсов собрано:</b> {total_resources} ед.\n"
+        f"<b>Потрачено денег:</b> {format_number(total_spent)} 💵\n"
+        f"<b>Заработано денег:</b> {format_number(total_earn, 0)} 💵\n"
+        f"<b>Соотношение доход/расход:</b> {total_earned / total_spent if total_spent > 0 else '∞'}\n"
+        f"<b>Количество выполненных заданий:</b> {u.get('completed_quests', 0)}\n"
+        f"<b>Открыто кейсов:</b> {u.get('opened_cases', 0)}\n"
+        "\n"
+        "Продолжайте играть, чтобы улучшать свои показатели!\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="👤 Профиль", callback_data="player_profile"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="player_profile"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "player_settings")
+async def player_settings(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>⚙️ НАСТРОЙКИ ПРОФИЛЯ</b>\n"
+        f"{SEP}\n"
+        "Здесь вы можете:\n"
+        "• Изменить имя игрока\n"
+        "• Настроить уведомления\n"
+        "• Выйти из аккаунта\n"
+        "\n"
+        "<i>Функция в разработке...</i>\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="👤 Профиль", callback_data="player_profile"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="player_profile"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+# --- Вспомогательные функции ---
+def get_lvl(xp: int) -> int:
+    """Рассчитывает уровень игрока по количеству опыта."""
+    lvl = 1
+    while xp >= get_next_lvl_xp(lvl):
+        lvl += 1
+    return lvl
+
+def get_next_lvl_xp(lvl: int) -> int:
+    """Возвращает количество опыта для следующего уровня."""
+    return 100 * (lvl ** 1.5)
+
+def format_number(num: int) -> str:
+    """Форматирует число с разделителями тысяч."""
+    return f"{num:,}".replace(",", " ")
+
+def back_kb():
+    """Создаёт клавиатуру с кнопкой «Назад»."""
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+    return b.as_markup()
+
+# --- Запуск бота ---
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    import asyncio
+    asyncio.run(main())
+
+# --- 16. КЕЙСЫ (случайные награды) ---
+@dp.callback_query(F.data == "cases_menu")
+async def cases_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>📦 КЕЙСЫ</b>\n"
+        f"{SEP}\n"
+        "Здесь вы можете открывать кейсы и получать случайные награды.\n\n"
+        f"<b>У вас есть:</b>\n"
+    )
+
+    case_types = {
+        "common": "Обычные (бесплатно)",
+        "premium": "Премиум (1 000 💵)",
+        "legendary": "Легендарные (10 0000 💵)"
+    }
+
+    for case_type, desc in case_types.items():
+        count = u["cases"].get(case_type, 0)
+        text += f"• {desc}: {count} шт.\n"
+
+
+    text += f"\n{FOOTER}"
+
+
+    b = InlineKeyboardBuilder()
+    b.row(
+        types.InlineKeyboardButton(text="Открыть обычный", callback_data="open_case_common"),
+        types.InlineKeyboardButton(text="Купить премиум", callback_data="buy_case_premium")
+    )
+    b.row(
+        types.InlineKeyboardButton(text="Купить легендарный", callback_data="buy_case_legendary"),
+        types.InlineKeyboardButton(text="🔄 Обновить", callback_data="cases_menu")
+    )
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+@dp.callback_query(F.data == "open_case_common")
+async def open_case_common(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+
+    if u["cases"].get("common", 0) <= 0:
+        await call.answer("У вас нет обычных кейсов!", show_alert=True)
+        await cases_menu(call)
+        return
+
+    # Уменьшаем количество кейсов
+    u["cases"]["common"] -= 1
+
+
+    # Случайная награда
+    rewards = [
+        {"money": 100, "xp": 10},
+        {"iron": 5, "crystal": 2},
+        {"stars": 1},
+        {"chip": 1, "money": 500},
+        {"xp": 50}
+    ]
+    reward = random.choice(rewards)
+
+    msg = "<b>Вы открыли обычный кейс!</b>\n\nНаграды:\n"
+    for res, amount in reward.items():
+        if res in RESOURCES:
+            u["res"][res] = u["res"].get(res, 0) + amount
+            msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
+        else:
+            if res == "money":
+                u["money"] += amount
+                msg += f"+ {format_number(amount)} 💵\n"
+            elif res == "xp":
+                u["xp"] += amount
+                msg += f"+ {amount} XP\n"
+            elif res == "stars":
+                u["stars"] += amount
+                msg += f"+ {amount} ⭐\n"
+            elif res == "chip":
+                msg += f"+ 1 🔬 Редкий чип\n"
+
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n{msg}\n{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+@dp.callback_query(F.data == "buy_case_premium")
+async def buy_case_premium(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+
+    cost = 1000
+    if u["money"] < cost:
+        await call.answer(
+            f"❌ Недостаточно средств!\n"
+            f!Требуется: {format_number(cost)} 💵\n"
+            f!У вас: {format_number(u['money'])} 💵",
+            show_alert=True
+        )
+        await cases_menu(call)
+        return
+
+    u["money"] -= cost
+    u["cases"]["premium"] = u["cases"].get("premium", 0) + 1
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n✅ Вы купили премиум-кейс!\n\n"
+        f"Теперь у вас: {u['cases']['premium']} премиум-кейсов.\n"
+        f"{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+@dp.callback_query(F.data == "buy_case_legendary")
+async def buy_case_legendary(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+    cost = 100000
+    if u["money"] < cost:
+        await call.answer(
+            f"❌ Недостаточно средств!\n"
+            f!Требуется: {format_number(cost)} 💵\n"
+            f!У вас: {format_number(u['money'])} 💵",
+            show_alert=True
+        )
+        await cases_menu(call)
+        return
+
+    u["money"] -= cost
+    u["cases"]["legendary"] = u["cases"].get("legendary", 0) + 1
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n✅ Вы купили легендарный кейс!\n\n"
+        f"Теперь у вас: {u['cases']['legendary']} легендарных кейсов.\n"
+        f"{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+# --- 17. PVP-БОИ (игрок против игрока) ---
+@dp.callback_query(F.data == "pvp_menu")
+async def pvp_menu(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>👊 PVP-БОИ</b>\n"
+        f"{SEP}\n"
+        "Выберите режим боя:\n\n"
+        "1. <b>Случайный противник</b> — система подберёт вам соперника.\n"
+        "2. <b>Вызов друга</b> — пригласите друга сразиться.\n"
+        "3. <b>Рейтинг</b> — посмотрите топ игроков.\n\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(
+        types.InlineKeyboardButton(text="Случайный бой", callback_data="pvp_random"),
+        types.InlineKeyboardButton(text="Вызов друга", callback_data="pvp_invite")
+    )
+    b.row(
+        types.InlineKeyboardButton(text="Рейтинг", callback_data="pvp_rating"),
+        types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main")
+    )
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "pvp_random")
+async def pvp_random(call: types.CallbackQuery):
+    # Логика подбора случайного противника (упрощённо)
+    await call.answer("Поиск соперника... Пожалуйста, подождите.", show_alert=False)
+
+
+    # Имитация поиска (в реальной реализации — поиск в базе)
+    await asyncio.sleep(2)
+
+
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+
+    # Случайный результат боя (упрощённая логика)
+    win = random.choice([True, False])
+    reward = random.randint(500, 2000)
+
+
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+
+    if win:
+        u["money"] += reward
+        u["pvp_wins"] += 1
+        msg = (
+            "<b>Победа в PVP-бою!</b>\n\n"
+            f"Вы получили: {format_number(reward)} 💵\n"
+            "Ваша серия побед увеличена!\n\n"
+            "Продолжайте сражаться!"
+        )
+    else:
+        msg = (
+            "<b>Поражение в PVP-бою!</b>\n\n"
+            "Не расстраивайтесь — в следующий раз повезёт больше!\n\n"
+            "Попробуйте снова?"
+        )
+
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n{msg}\n{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+@dp.callback_query(F.data == "pvp_invite")
+async def pvp_invite(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>👊 ВЫЗОВ ДРУГА</b>\n"
+        f"{SEP}\n"
+        "Чтобы вызвать друга на бой:\n\n"
+        "1. Отправьте ему специальную ссылку-приглашение.\n"
+        "2. Друг должен перейти по ссылке и принять вызов.\n"
+        "3. Бой начнётся автоматически!\n\n"
+        "<i>Функция в разработке...</i>\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="Получить ссылку", callback_data="get_invite_link"))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="pvp_menu"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "get_invite_link")
+async def get_invite_link(call: types.CallbackQuery):
+    # Генерируем уникальную ссылку (в реальной реализации — через базу данных)
+    invite_code = f"pvp_{call.from_user.id}_{random.randint(1000, 9999)}"
+    link = f"https://t.me/your_bot?start={invite_code}"
+
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>🔗 ВАША ССЫЛКА-ПРИГЛАШЕНИЕ</b>\n"
+        f"{SEP}\n"
+        f"Отправьте эту ссылку другу:\n\n"
+        f"<code>{link}</code>\n\n"
+        "Когда друг перейдёт по ссылке, бой начнётся автоматически.\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(
+        types.InlineKeyboardButton(
+            text="Скопировать ссылку",
+            url=link
+        )
+    )
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="pvp_invite"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "pvp_rating")
+async def pvp_rating(call: types.CallbackQuery):
+    data = load_data()
+    players = data["players"]
+
+
+    # Сортируем игроков по количеству побед
+    sorted_players = sorted(
+        players.values(),
+        key=lambda x: x["pvp_wins"],
+        reverse=True
+    )
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>🏆 РЕЙТИНГ PVP</b>\n"
+        f"{SEP}\n"
+        "<u>Топ-10 игроков:</u>\n\n"
+    )
+
+    for i, player in enumerate(sorted_players[:10], 1):
+        text += (
+            f"{i}. <b>{player['name']}</b>\n"
+            f"   Победы: {player['pvp_wins']}\n"
+            f"   Уровень: {get_lvl(player['xp'])}\n\n"
+        )
+
+    text += f"{FOOTER}"
+
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="pvp_menu"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+# --- 18. ЗАДАНИЯ (квесты) ---
+@dp.callback_query(F.data == "quests_menu")
+async def quests_menu(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    u = load_data()["players"][uid]
+
+
+    text = (
+        f"{HEADER}\n"
+        f"<b>📝 ЗАДАНИЯ</b>\n"
+        f"{SEP}\n"
+        "Выполняйте задания, чтобы получать награды!\n\n"
+        "<u>Доступные задания:</u>\n"
+    )
+
+    quests = [
+        {"id": "collect_iron", "name": "Собрать железо", "desc": "Найдите 10 железа", "reward": {"money": 500, "xp": 20}},
+        {"id": "open_cases", "name": "Открыть кейсы", "desc": "Откройте 3 кейса", "reward": {"stars": 1}},
+        {"id": "win_pvp", "name": "Победить в PVP", "desc": "Выиграйте 1 PVP-бой", "reward": {"money": 1000}}
+    ]
+
+    completed = u.get("completed_quests", [])
+
+    for quest in quests:
+        if quest["id"] not in completed:
+            text += (
+                f"• <b>{quest['name']}</b>\n"
+                f"  {quest['desc']}\n"
+                "  Награда: "
+            )
+            for res, amount in quest["reward"].items():
+                if res == "money":
+                    text += f"{format_number(amount)} 💵, "
+                elif res == "xp":
+                    text += f"{amount} XP, "
+                elif res == "stars":
+                    text += f"{amount} ⭐, "
+            text = text.rstrip(", ") + "\n\n"
+
+    if all(q["id"] in completed for q in quests):
+        text += "Все задания выполнены! Следите за обновлениями.\n"
+
+    text += f"{FOOTER}"
+
+
+    b = InlineKeyboardBuilder()
+    for quest in quests:
+        if quest["id"] not in completed:
+            b.row(types.InlineKeyboardButton(
+                text=f"Выполнить «{quest['name']}»",
+                callback_data=f"do_quest_{quest['id']}"
+            ))
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data.startswith("do_quest_"))
+async def do_quest(call: types.CallbackQuery):
+    quest_id = call.data.split("_")[2]
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+
+
+    quests = {
+        "collect_iron": {"check": u["res"].get("iron", 0) >= 10, "reward": {"money": 500, "xp": 20}},
+        "open_cases": {"check": u.get("opened_cases", 0) >= 3, "reward": {"stars": 1}},
+        "win_pvp": {"check": u["pvp_wins"] >= 1, "reward": {"money": 1000}}
+    }
+
+    if quest_id not in quests:
+        await call.answer("Задание не найдено!", show_alert=True)
+        await quests_menu(call)
+        return
+
+    if u.get("completed_quests", []).count(quest_id) > 0:
+        await call.answer("Вы уже выполнили это задание!", show_alert=True)
+        await quests_menu(call)
+        return
+
+    # Проверяем выполнение условий задания
+    if not quests[quest_id]["check"]:
+        await call.answer(
+            "Вы ещё не выполнили условия задания!\n"
+            "Проверьте требования и попробуйте снова.",
+            show_alert=True
+        )
+        await quests_menu(call)
+        return
+
+    # Выдаём награду
+    reward = quests[quest_id]["reward"]
+    msg = "<b>Задание выполнено!</b>\n\nНаграда:\n"
+
+
+    for res, amount in reward.items():
+        if res in RESOURCES:
+            u["res"][res] = u["res"].get(res, 0) + amount
+            msg += f"+ {format_number(amount)} {RESOURCES[res]}\n"
+        elif res == "money":
+            u["money"] += amount
+            msg += f"+ {format_number(amount)} 💵\n"
+        elif res == "xp":
+            u["xp"] += amount
+            msg += f"+ {amount} XP\n"
+        elif res == "stars":
+            u["stars"] += amount
+            msg += f"+ {amount} ⭐\n"
+
+    # Отмечаем задание как выполненное
+    if "completed_quests" not in u:
+        u["completed_quests"] = []
+    u["completed_quests"].append(quest_id)
+
+
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n{msg}\n{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
+# --- 19. МАГАЗИН (покупки за реальную валюту/внутренние покупки) ---
 @dp.callback_query(F.data == "shop_menu")
 async def shop_menu(call: types.CallbackQuery):
     text = (
@@ -1607,14 +2305,14 @@ async def shop_menu(call: types.CallbackQuery):
         "Здесь вы можете приобрести редкие предметы и бонусы.\n\n"
         "<u>Доступные товары:</u>\n\n"
         "1. <b>Редкий чип</b>\n"
-        "   • Описание: Позволяет улучшить корабль на +5 уровней.\n"
-        "   • Цена: 5 000 ⭐ (звёзды)\n\n"
+        "   • Описание: Позволяет улучшить корабль на +5 уровней.\n"
+        "   • Цена: 5 000 ⭐ (звёзды)\n\n"
         "2. <b>Ускоритель добычи</b>\n"
-        "   • Описание: Увеличивает скорость добычи ресурсов на 50% на 1 час.\n"
-        "   • Цена: 2 500 ⭐\n\n"
+        "   • Описание: Увеличивает скорость добычи ресурсов на 50% на 1 час.\n"
+        "   • Цена: 2 500 ⭐\n\n"
         "3. <b>Премиум-кейс</b>\n"
         "   • Описание: Содержит редкие ресурсы и деньги.\n"
-        "   • Цена: 1 000 ⭐\n\n"
+        "   • Цена: 1 000 ⭐\n\n"
         f"{FOOTER}"
     )
 
@@ -1637,29 +2335,25 @@ async def buy_chip(call: types.CallbackQuery):
     data = load_data()
     u = data["players"][uid]
 
+
     cost = 5000
     if u["stars"] < cost:
         await call.answer(
             f"❌ Недостаточно звёзд!\n"
-            f"Требуется: {format_number(cost)} ⭐\n"
-            f"У вас: {format_number(u['stars'])} ⭐",
+            f!Требуется: {format_number(cost)} ⭐\n"
+            f!У вас: {format_number(u['stars'])} ⭐",
             show_alert=True
         )
-        # Убрали await shop_menu(call), так как call.answer с алертом достаточно, 
-        # либо можно вызвать shop_menu отдельно без await, если это просто функция.
+        await shop_menu(call)
         return
 
     u["stars"] -= cost
-    # Проверка на существование ключа "res", чтобы не было ошибки
-    if "res" not in u:
-        u["res"] = {}
-        
     u["res"]["chip"] = u["res"].get("chip", 0) + 1
     save_data(data)
 
     await call.message.edit_text(
         f"{HEADER}\n✅ Вы купили редкий чип!\n\n"
-        f"Теперь у вас: {u['res']['chip']} редких чипов.\n"
+        f"Теперь у вас: {u['res']['chip']} редких чипов.\n"
         f"{FOOTER}",
         parse_mode=ParseMode.HTML,
         reply_markup=back_kb()
@@ -1676,18 +2370,19 @@ async def buy_booster(call: types.CallbackQuery):
     if u["stars"] < cost:
         await call.answer(
             f"❌ Недостаточно звёзд!\n"
-            f"Требуется: {format_number(cost)} ⭐\n"
-            f"У вас: {format_number(u['stars'])} ⭐",
+            f!Требуется: {format_number(cost)} ⭐\n"
+            f!У вас: {format_number(u['stars'])} ⭐",
             show_alert=True
         )
+        await shop_menu(call)
         return
 
     u["stars"] -= cost
 
-    # ИСПРАВЛЕНЫ ОТСТУПЫ: теперь код внутри функции
+    # Добавляем эффект ускорителя (в реальной реализации — с таймером)
     if "boosters" not in u:
         u["boosters"] = {}
-
+    u["boost packed"] = u.get("boosters", {})
     u["boosters"]["mining_speed"] = {
         "end_time": (datetime.now() + timedelta(hours=1)).isoformat(),
         "multiplier": 1.5
@@ -1695,14 +2390,43 @@ async def buy_booster(call: types.CallbackQuery):
 
     save_data(data)
 
-    # ИСПРАВЛЕН СИНТАКСИС: добавлена закрывающая скобка
     await call.message.edit_text(
         f"{HEADER}\n✅ Ускоритель добычи активирован!\n\n"
-        "Скорость добычи ресурсов увеличена на 50% на 1 час.\n"
+        "Скорость добычи ресурсов увеличена на 50% на 1 час.\n"
         f"{FOOTER}",
         parse_mode=ParseMode.HTML,
         reply_markup=back_kb()
     )
+
+@dp.callback_query(F.data == "buy_premium_case")
+async def buy_premium_case(call: types.CallbackQuery):
+    uid = str(call.from_user.id)
+    data = load_data()
+    u = data["players"][uid]
+    cost = 1000
+
+    if u["stars"] < cost:
+        await call.answer(
+            f"❌ Недостаточно звёзд!\n"
+            f!Требуется: {format_number(cost)} ⭐\n"
+            f!У вас: {format_number(u['stars'])} ⭐",
+            show_alert=True
+        )
+        await shop_menu(call)
+        return
+
+    u["stars"] -= cost
+    u["cases"]["premium"] = u["cases"].get("premium", 0) + 1
+    save_data(data)
+
+    await call.message.edit_text(
+        f"{HEADER}\n✅ Вы купили премиум-кейс!\n\n"
+        f"Теперь у вас: {u['cases']['premium']} премиум-кейсов.\n"
+        f"{FOOTER}",
+        parse_mode=ParseMode.HTML,
+        reply_markup=back_kb()
+    )
+
 # --- 20. ПОМОЩЬ И ИНФОРМАЦИЯ ---
 @dp.callback_query(F.data == "help_menu")
 async def help_menu(call: types.CallbackQuery):
@@ -1714,7 +2438,7 @@ async def help_menu(call: types.CallbackQuery):
         "<u>Основные разделы:</u>\n\n"
         "• <b>Управление</b>: как взаимодействовать с ботом.\n"
         "• <b>Механики игры</b>: объяснение ключевых систем.\n"
-        "• <b>Советы</b>: стратегии развития.\n"  # Добавлено описание, было пусто
+        "• <b>Советы</b>:
         "• <b>Частые вопросы</b>: ответы на популярные вопросы.\n\n"
         f"{FOOTER}"
     )
@@ -1730,16 +2454,115 @@ async def help_menu(call: types.CallbackQuery):
     )
     b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="back_main"))
 
+
     await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
 
-# ... (остальные хендлеры помощи без изменений, там ошибок нет)
 
-# --- 21. ВЫХОД ИЗ МЕНЮ (исправлено) ---
+@dp.callback_query(F.data == "help_controls")
+async def help_controls(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>🎮 УПРАВЛЕНИЕ</b>\n"
+        f"{SEP}\n"
+        "Как взаимодействовать с ботом:\n\n"
+        "1. <b>Главное меню</b>: нажмите кнопку «Меню» в чате с ботом.\n"
+        "2. <b>Навигация</b>: используйте кнопки в сообщениях для перехода между разделами.\n"
+        "3. <b>Действия</b>: выбирайте опции (например, «Купить», «Открыть», «Выполнить») через кнопки.\n"
+        "4. <b>Возврат</b>: кнопка «Назад» вернёт вас на предыдущий экран.\n\n"
+        "Если вы застряли — нажмите «Назад» несколько раз, чтобы вернуться в главное меню.\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="help_menu"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "help_mechanics")
+async def help_mechanics(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>⚙️ МЕХАНИКИ ИГРЫ</b>\n"
+        f"{SEP}\n"
+        "Основные системы игры:\n\n"
+        "1. <b>Ресурсы</b>: собирайте железо, кристаллы и другие материалы для улучшений.\n"
+        "2. <b>Опыт (XP)</b>: зарабатывайте XP для повышения уровня. Каждый уровень даёт бонусы.\n"
+        "3. <b>Деньги (💵)</b>: внутриигровая валюта для покупок и улучшений.\n"
+        "4. <b>Звёзды (⭐)</b>: особая валюта для премиум-товаров и ускорителей.\n"
+        "5. <b>Кейсы</b>: открывайте кейсы для случайных наград.\n"
+        "6. <b>PVP-бои</b>: сражайтесь с другими игроками за награды.\n"
+        "7. <b>Задания</b>: выполняйте квесты для получения бонусов.\n"
+        "8. <b>Склад</b>: храните ресурсы и следите за вместимостью.\n\n"
+        "Подробнее о каждой механике — в соответствующих разделах меню.\n"
+        f"{FOOTER}"
+    )
+
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="help_menu"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "help_tips")
+async def help_tips(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>💡 СОВЕТЫ</b>\n"
+        f"{SEP}\n"
+        "Как быстрее развиваться:\n\n"
+        "1. <b>Регулярно собирайте ресурсы</b>: проверяйте склад и отправляйтесь на поиски.\n"
+        "2. <b>Выполняйте задания</b>: квесты дают хорошие награды без риска.\n"
+        "3. <b>Участвуйте в PVP</b>: победы приносят деньги и опыт.\n"
+        "4. <b>Улучшайте склад</b>: больше вместимость — больше ресурсов.\n"
+        "5. <b>Открывайте кейсы</b>: даже обычные кейсы могут дать ценные награды.\n"
+        "6. <b>Следите за событиями</b>: глобальные ивенты дают редкие ресурсы.\n"
+        "7. <b>Экономьте звёзды</b>: они нужны для премиум-товаров.\n\n"
+        "Помните: терпение и стратегия — ключ к успеху!\n"
+        f"{FOOTER}"
+    )
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="help_menu"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+@dp.callback_query(F.data == "help_faq")
+async def help_faq(call: types.CallbackQuery):
+    text = (
+        f"{HEADER}\n"
+        f"<b>❓ ЧАСТЫЕ ВОПРОСЫ</b>\n"
+        f"{SEP}\n"
+        "<u>1. Как заработать деньги?</u>\n"
+        "   • Выполняйте задания, участвуйте в PVP, открывайте кейсы, продавайте ресурсы.\n\n"
+        "<u>2. Где найти редкие ресурсы?</u>\n"
+        "   • В глобальных событиях, премиальных кейсах или при улучшенном поиске ресурсов.\n\n"
+        "<u>3. Почему не открывается кейс?</u>\n"
+        "   • Проверьте, есть ли у вас кейсы в инвентаре. Если нет — купите или получите в событии.\n\n"
+        "<u>4. Как повысить уровень?</u>\n"
+        "   • Зарабатывайте XP: выполняйте задания, побеждайте в PVP, собирайте ресурсы.\n\n"
+        "<u>5. Что делать, если закончились деньги?</u>\n"
+        "   • Выполните задания, откройте кейсы или участвуйте в событиях — там часто дают награды.\n\n"
+        "<u>6. Как пригласить друга?</u>\n"
+        "   • Используйте ссылку из раздела «PVP → Вызов друга».\n\n"
+        f"{FOOTER}"
+    )
+    b = InlineKeyboardBuilder()
+    b.row(types.InlineKeyboardButton(text="↩️ НАЗАД", callback_data="help_menu"))
+
+
+    await call.message.edit_text(text, parse_mode=ParseMode.HTML, reply_markup=b.as_markup())
+
+
+# --- 21. ВЫХОД ИЗ МЕНЮ (возврат в главное меню) ---
 @dp.callback_query(F.data == "back_main")
 async def back_main(call: types.CallbackQuery):
     uid = str(call.from_user.id)
-    data = load_data() # Добавлено получение data, так как ниже используется u
-    u = data["players"][uid]
+    u = load_data()["players"][uid]
+
 
     text = (
         f"{HEADER}\n"
@@ -1766,23 +2589,10 @@ async def back_main(call: types.CallbackQuery):
         types.InlineKeyboardButton(text="👤 Профиль", callback_data="player_profile"),
         types.InlineKeyboardButton(text="❓ Помощь", callback_data="help_menu")
     )
+    await call.message.edit_text(text, parse_mode=Parse
 
-    # Исправлен обрыв строки и дублирование
     await call.message.edit_text(
-        text, 
-        parse_mode=ParseMode.HTML, 
+        text,
+        parse_mode=ParseMode.HTML,
         reply_markup=b.as_markup()
     )
-
-
-
-
-
-
-
-
-
-
-
-
-
