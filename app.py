@@ -44,7 +44,7 @@ def load_db():
     """Загружает БД из JSON-файла. Если файла нет — создаёт дефолтную.
     Обрабатывает ошибки JSON."""
     if not os.path.exists(DB_PATH):
-        default_db = {
+        default_db = {},
             "users": {},
             "market": [],
             "tournaments": [],
@@ -399,5 +399,244 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, Message
+from aiogram.utils.markdown import hbold, hitalic
+
+# --- ШКАЛА РАНГОВ ПО ELO (без изменений) ---
+def get_rank_by_elo(elo: int) -> dict:
+    ranks = [
+        {"min": 0, "max": 999, "name": "Новенький", "icon": "🥉", "color": "gray"},
+        {"min": 1000, "max": 1299, "name": "Бронза I", "icon": "🥉", "color": "brown"},
+        {"min": 1300, "max": 1599, "name": "Бронза II", "icon": "🥉", "color": "brown"},
+        {"min": 1600, "max": 1899, "name": "Серебро I", "icon": "🥈", "color": "silver"},
+        {"min": 1900, "max": 2199, "name": "Серебро II", "icon": "🥈", "color": "silver"},
+        {"min": 2200, "max": 2499, "name": "Золото I", "icon": "🥇", "color": "gold"},
+        {"min": 2500, "max": 2799, "name": "Золото II", "icon": "🥇", "color": "gold"},
+        {"min": 2800, "max": 3099, "name": "Платина I", "icon": "💎", "color": "blue"},
+        {"min": 3100, "max": 3399, "name": "Платина II", "icon": "💎", "color": "blue"},
+        {"min": 3400, "max": 3699, "name": "Алмаз", "icon": "✨", "color": "cyan"},
+        {"min": 3700, "max": 9999, "name": "Легенда", "icon": "🏆", "color": "purple"}
+    ]
+    for rank in ranks:
+        if rank["min"] <= elo <= rank["max"]:
+            return rank
+    return ranks[-1]
+
+# --- ИНЛАЙН‑КЛАВИАТУРЫ (единый стиль) ---
+def get_main_menu() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📊 Профиль команды", callback_data="show_profile")],
+        [InlineKeyboardButton(text="🏋️ Тренировки & Локации", callback_data="training_menu")],
+        [InlineKeyboardButton(text="🎮 Матчи & Турниры", callback_data="matches_menu")],
+        [InlineKeyboardButton(text="🎁 Кейсы & Инвентарь", callback_data="cases_menu")],
+        [InlineKeyboardButton(text="⚙️ Настройки & Спонсоры", callback_data="settings_menu")]
+    ])
+    return keyboard
+
+def get_profile_keyboard() -> InlineKeyboardMarkup:
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="🔄 Обновить", callback_data="refresh_profile"),
+            InlineKeyboardButton(text="👥 Состав", callback_data="team_roster")
+        ],
+        [
+            InlineKeyboardButton(text="💼 Инвентарь", callback_data="inventory"),
+            InlineKeyboardButton(text="🏆 Ранги", callback_data="show_ranks")
+        ]
+    ])
+    return keyboard
+
+# --- ОБРАБОТЧИК /menu ---
+@dp.message(Command("menu"))
+async def cmd_menu(message: Message, state: FSMContext):
+    user = get_user(message.from_user.id)
+    if not user:
+        await message.answer("Вы не зарегистрированы! Используйте /start.")
+        return
+
+    await message.answer(
+        hbold("Главное меню CS2 Arena Manager") + "\n\n"
+        "Выберите раздел ниже 👇",
+        reply_markup=get_main_menu(),
+        parse_mode="HTML"
+    )
+
+# --- ОБРАБОТЧИК ПРОФИЛЯ ---
+@dp.callback_query(F.data == "show_profile")
+async def show_profile(callback: types.CallbackQuery):
+    user = get_user(callback.from_user.id)
+    if not user:
+        await callback.answer("Ошибка: пользователь не найден.")
+        return
+
+    # Расчёт средних статов
+    total_stats = {"aim": 0, "reaction": 0, "tactics": 0, "stamina": 0}
+    for player in user["players"]:
+        for stat, value in player["stats"].items():
+            if stat in total_stats:
+                total_stats[stat] += value
+    avg_stats = {k: v // len(user["players"]) for k, v in total_stats.items()}
+
+
+    # Индикатор морали (5 сегментов)
+    morale_percent = user["morale"]
+    morale_bars = "🟩" * (morale_percent // 20)  # Полные сегменты
+    if morale_percent % 20 > 0 and len(morale_bars) < 5:
+        morale_bars += "🟨!  # Частичный сегмент
+    morale_bars = morale_bars.ljust(5, "⬜️")  # Дополнить пустыми
+
+    # Ранг и иконка
+    rank = get_rank_by_elo(user["elo"])
+    rank_line = f"{rank['icon']} <b>{rank['name']}</b> ({user['elo']} ELO)"
+
+    # Формирование профиля
+    profile_text = (
+        f"<b>🏛️ {user['team_name']}</b>\n"
+        f"{rank_line}\n"
+        f"────────────────────\n"
+        f"<i>Баланс:</i> <b>{user['balance']}</b> кредитов\n"
+        f"<i>Репутация:</i> <b>{user['reputation']}/100</b>\n"
+        f"<i>Стрик побед:</i> <code>{user['win_streak']}</code>\n"
+        f"<i>Локация:</i> {user['training_location']}\n\n"
+
+        f"<u>Средняя статистика команды:</u>\n"
+        f!🎯 <b>Aim:</b> {avg_stats['aim']}\n"
+        f!⚡ <b>Reaction:</b> {avg_stats['reaction']}\n"
+        f!🧠 <b>Tactics:</b> {avg_stats['tactics']}\n"
+        f!💪 <b>Stamina:</b> {avg_stats['stamina']}\n\n"
+
+        f"<i>Мораль:</i>\n{morale_bars} <code>({morale_percent}%)</code>\n\n"
+
+        f"<code>• • • • • • • • • • •</code>\n"
+        f"<i>Очки турниров:</i> <b>{user['tournament_points']}</b>"
+    )
+
+    await callback.message.edit_text(
+        text=profile_text,
+        reply_markup=get_profile_keyboard(),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+# --- CALLBACK-ОБРАБОТЧИКИ (исправлены все ссылки на user["players"]) ---
+@dp.callback_query(F.data == "refresh_profile")
+async def refresh_profile(callback: types.CallbackQuery):
+    await show_profile(callback)  # Переиспользуем основную функцию
+
+@dp.callback_query(F.data == "team_roster")
+async def show_team_roster(callback: types.CallbackQuery):
+    user = get_user(callback.from_user.id)
+    if not user:
+        await callback.answer("Ошибка: пользователь не найден.")
+        return
+
+    roster_text = f"<b>👥 Состав команды: {user['team_name']}</b>\n\n"
+    for i, player in enumerate(user["players"], 1):
+        rarity_icon = "🔶! if player["rarity"] == "Неопытный! else \
+                     "🔷! if player["rarity"] == "Опытный! else \
+                    "⭐! if player["rarity"] == "Звезда! else "✨"
+
+
+        roster_text += (
+            f"<b>{i}.</b> {rarity_icon} <i>{player['name']}</i> "
+            f"(<code>{player['role']}</code>)\n"
+            f!   📈 <b>Aim:</b> {player['stats']['aim']}, "
+            f"<b>Reaction:</b> {player['stats']['reaction']}\n"
+            f!   🧠 <b>Tactics:</b> {player['stats']['tactics']}, "
+            f"<b>Stamina:</b> {player['stats']['stamina']}\n"
+            f!   ❤️ <b>Мораль:</b> {player['morale']}%\n"
+            f!   🛡️ <b>Скин:</b> {player['skin']}\n\n"
+        )
+
+
+    await callback.message.edit_text(
+        text=roster_text,
+        reply_markup=get_profile_keyboard(),
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "inventory")
+async def show_inventory(callback: types.CallbackQuery):
+    user = get_user(callback.from_user.id)
+    if not user:
+        await callback.answer("Ошибка: пользователь не найден.")
+        return
+
+    inv = user["inventory"]
+    inv_text = "<b>💼 Инвентарь</b>\n\n"
+
+    if inv["skins"]:
+        inv_text += "<u>Скины оружия:</u>\n"
+        for skin in inv["skins"]:
+            inv_text += f!   - 🔫 {skin}\n"
+        inv_text += "\n"
+    else:
+        inv_text += "<i>Скины отсутствуют</i>\n\n"
+
+    if inv["cases"]:
+        inv_text += "<u>Кейсы:</u>\n"
+        for case in inv["cases"]:
+            inv_text += f!   - 🎁 {case}\n"
+        inv_text += "\n"
+    else:
+        inv_text += "<i>Кейсы отсутствуют</i>\n\n"
+
+
+    if inv["other"]:
+        inv_text += "<u>Прочее:</u>\n"
+        for item in inv["other"]:
+            inv_text += f!   - ➕ {item}\n"
+    else:
+        inv_text += "<i>Прочие предметы отсутствуют</i>"
+
+    await callback.message.edit_text(
+        text=inv_text,
+        reply_markup=get_profile_keyboard(),
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
+    await callback.answer()
+
+@dp.callback_query(F.data == "show_ranks")
+async def show_ranks(callback: types.CallbackQuery):
+    ranks = [
+        {"min": 0, "max": 999, "name": "Новенький", "icon": "🥉"},
+        {"min": 1000, "max": 1299, "name": "Бронза I", "icon": "🥉"},
+        {"min": 1300, "max": 1599, "name": "Бронза II", "icon": "🥉"},
+        {"min": 1600, "max": 1899, "name": "Серебро I", "icon": "🥈"},
+        {"min": 1900, "max": 2199, "name": "Серебро II", "icon": "🥈"},
+        {"min": 2200, "max": 2499, "name": "Золото I", "icon": "🥇"},
+        {"min": 2500, "max": 2799, "name": "Золото II", "icon": "🥇"},
+        {"min": 2800, "max": 3099, "name": "Платина I", "icon": "💎"},
+        {"min": 3100, "max": 3399, "name": "Платина II", "icon": "💎"},
+        {"min": 3400, "max": 3699, "name": "Алмаз", "icon": "✨"},
+        {"min": 3700, "max": 9999, "name": "Легенда", "icon": "🏆"}
+    ]
+
+
+    rank_text = "<b>🏆 Шкала рангов</b>\n\n"
+    for rank in ranks:
+        rank_text += (
+            f"{rank['icon']} <b>{rank['name']}</b> "
+            f"(<code>{rank['min']}–{rank['max']} ELO</code>)\n"
+        )
+
+    current_rank = get_rank_by_elo(user["elo"])
+    rank_text += (
+        "\n<i>Ваш текущий ранг:</i>\n"
+        f"{current_rank['icon']} <b>{current_rank['name']}</b> "
+        f"({user['elo']} ELO)"
+    )
+
+    await callback.message.edit_text(
+        text=rank_text,
+        reply_markup=get_profile_keyboard(),
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
+    await callback.answer()
+
+
 
