@@ -18,8 +18,8 @@ ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 DB_PATH = "omega_data.json"
 
 # Визуал терминала
-HEADER = "🧬 <b>╔═══════ [ OMEGA-SYSTEM ] ═══╗</b>"
-SEP = "<b><pre>───────────────────────────────</pre></b>"
+HEADER = "🧬 <b>╔═══════ [ OMEGA-SYSTEM ] ═══════╗</b>"
+SEP = "<b><pre>───────────────────────────────────</pre></b>"
 
 logging.basicConfig(level=logging.INFO)
 bot = Bot(token=TOKEN)
@@ -167,12 +167,12 @@ async def back_main(call: types.CallbackQuery):
 
 # --- ФИДБЕК ---
 @dp.callback_query(F.data == "suggest_idea")
-async def idea_start(call: types.CallbackQuery, state: FContext):
+async def idea_start(call: types.CallbackQuery, state: FSMContext):
     await state.set_state(FeedbackState.waiting_for_idea)
     await call.message.answer("📝 Введите вашу идею одним сообщением:")
 
 @dp.message(FeedbackState.waiting_for_idea)
-async def idea_process(message: types.Message, state: FContext):
+async def idea_process(message: types.Message, state: FSMContext):
     await bot.send_message(ADMIN_ID, f"💡 ИДЕЯ от {message.from_user.id}: {message.text}")
     await message.answer("✅ Отправлено админу!")
     await state.clear()
@@ -643,7 +643,7 @@ async def clan_handler(call: types.CallbackQuery):
     await call.message.edit_text(text, parse_mode="HTML", reply_markup=kb.as_markup())
 
 @dp.callback_query(F.data == "create_clan")
-async def create_clan_logic(call: types.CallbackQuery, state: FContext):
+async def create_clan_logic(call: types.CallbackQuery, state: FSMContext):
     u = get_user(call.from_user.id)
     if u["credits"] < 50000:
         return await call.answer("❌ Недостаточно кредитов для регистрации синдиката!", show_alert=True)
@@ -890,6 +890,7 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("--- [ SYSTEM OFFLINE ] ---")
+
 
 
 
