@@ -13,8 +13,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.context import FSMContext
 
 # --- НАСТРОЙКИ ---
-TOKEN = "BOT_TOKEN"
-ADMIN_ID = 5056869104 # Твой ID
+TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 DB_PATH = "omega_data.json"
 
 # Визуал терминала
@@ -890,5 +890,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         print("--- [ SYSTEM OFFLINE ] ---")
+
 
 
