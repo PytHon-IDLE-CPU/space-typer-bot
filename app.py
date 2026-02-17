@@ -48,18 +48,208 @@ def load_db():
             "users": {},
             "market": [],
             "tournaments": [],
-            "cases": {
-                "OperationPhoenix": {
-                    "chance": 0.05,
-                    "items": ["AWP | Dragon Lore", "M4A4 | Howl", "Desert Eagle | Blaze", "Кредиты (500)", "Редкий игрок (AWPer)"]
-                },
-                "LegacyCase": {
-                    "chance": 0.06,
-                    "items": ["AK-47 | Vulcan", "Glock-18 | Candy Apple", "USP-S | Orion", "Кредиты (300)", "Игрок (Rifle)"]
-                }
-                # ... остальные кейсы (сокращено для примера)
-            }
-        }
+"cases": {
+    "OperationPhoenix": {
+        "chance": 0.05,
+        "items": [
+            "AWP | Dragon Lore",
+            "M4A4 | Howl",
+            "Desert Eagle | Blaze",
+            "Кредиты (500)",
+            "Редкий игрок (AWPer)"
+        ]
+    },
+    "LegacyCase": {
+        "chance": 0.06,
+        "items": [
+            "AK-47 | Vulcan",
+            "Glock-18 | Candy Apple",
+            "USP-S | Orion",
+            "Кредиты (300)",
+            "Игрок (Rifle)"
+        ]
+    },
+    "Tournament2026": {
+        "chance": 0.03,
+        "items": [
+            "M4A1-S | Player's",
+            "AWP | Fever Dream",
+            "Five-SeveN | Hybrid",
+            "Кредиты (1000)",
+            "Легендарный игрок"
+        ]
+    },
+    "MysteryBox": {
+        "chance": 0.02,
+        "items": [
+            "Случайный скин (любой редкость)",
+            "Случайный игрок (любая роль)",
+            "Кредиты (200–1000)",
+            "Эксклюзивный скин",
+            "Секретный предмет"
+        ]
+    },
+    "WeaponExpert": {
+        "chance": 0.07,
+        "items": [
+            "AK-47 | Safety Net",
+            "M4A4 | Neo-Noir",
+            "P250 | Supervillain",
+            "Кредиты (400)",
+            "Игрок (Support)"
+        ]
+    },
+    "TeamSpirit": {
+        "chance": 0.04,
+        "items": [
+            "Эмблема команды (анимированная)",
+            "Граффити 'GO!'",
+            "Наклейка 'Champion'",
+            "Кредиты (600)",
+            "Игрок (IGL)"
+        ]
+    },
+    "GoldenAge": {
+        "chance": 0.01,
+        "items": [
+            "AWP | Gold Arabesque",
+            "AK-47 | Gold Arabesque",
+            "Karambit | Gold",
+            "Кредиты (1500)",
+            "Золотой скин (уникальный)"
+        ]
+    },
+    "Cyberpunk": {
+        "chance": 0.045,
+        "items": [
+            "MP9 | Hot Rod",
+            "SG 553 | Danger Close",
+            "Tec-9 | Red Quartz",
+            "Кредиты (500)",
+            "Скины с неоновой подсветкой"
+        ]
+    },
+    "ClassicCollection": {
+        "chance": 0.08,
+        "items": [
+            "AK-47 | Cartel",
+            "M4A4 | Desert-Strike",
+            "P2000 | Urban Hazard",
+            "Кредиты (250)",
+            "Игрок (Entry Fragger)"
+        ]
+    },
+    "CommunityChoice": {
+        "chance": 0.035,
+        "items": [
+            "Скины от фанатов (топ-10)",
+            "Граффити с автографом",
+            "Наклейки (редкие)",
+            "Кредиты (700)",
+            "Специальный игрок"
+        ]
+    },
+    "LimitedEdition": {
+        "chance": 0.005,
+        "items": [
+            "AWP | Asiimov (редкий)",
+            "M4A4 | The Emperor",
+            "Bayonet | Doppler",
+            "Кредиты (2000)",
+            "Эксклюзивы (выходят из продажи)"
+        ]
+    },
+    "LuckyDraw": {
+        "chance": 0.015,
+        "items": [
+            "Шанс на Legendary Case",
+            "Кредиты (100–800)",
+            "Случайный редкий скин",
+            "Игрок (случайная роль)",
+            "Бонус к ELO (+50)"
+        ]
+    },
+    "RetroLegends": {
+        "chance": 0.025,
+        "items": [
+            "AK-47 | Fire Serpent (CS 1.6)",
+            "M4A1 | Vulcan (CS 1.6)",
+            "Deagle | Blaze (CS 1.6)",
+            "Кредиты (800)",
+            "Ретро‑игрок"
+        ]
+    },
+    "NeonNights": {
+        "chance": 0.04,
+        "items": [
+            "UMP-45 | Neon Cutter",
+            "P90 | Trigon",
+            "Dual Berettas | Cobra Strike",
+            "Кредиты (600)",
+            "Светящиеся скины"
+        ]
+    },
+    "MilitaryGrade": {
+        "chance": 0.065,
+        "items": [
+            "AK-47 | Point Disarray",
+            "M4A1-S | Mecha Industries",
+            "SCAR-20 | Cyrex",
+            "Кредиты (450)",
+            "Игрок (Defender)"
+        ]
+    },
+    "AnimeEdition": {
+        "chance": 0.02,
+        "items": [
+            "AWP | Atheris",
+            "Galil AR | Cerberus",
+            "MAC-10 | Neon Rider",
+            "Кредиты (900)",
+            "Аниме‑скин (анимированный)"
+        ]
+    },
+    "HalloweenSpecial": {
+        "chance": 0.01,  # Только в октябре
+        "items": [
+            "M4A4 | Nightmare",
+            "Sawed-Off | Wasteland Princess",
+            "Sticker 'Pumpkin'",
+            "Кредиты (1200)",
+            "Сезонный скин"
+        ]
+    },
+    "WinterWonderland": {
+        "chance": 0.01,  # Только в декабре
+        "items": [
+            "AK-47 | Ice Coaled",
+            "G3SG1 | Polar Camo",
+            "Sticker 'Snowman'",
+            "Кредиты (1100)",
+            "Зимний скин"
+        ]
+    },
+    "StreetArt": {
+        "chance": 0.03,
+        "items": [
+            "UMP-45 | Blaze",
+            "P250 | Contempt",
+            "Nova | Bloomstick",
+            "Кредиты (700)",
+            "Граффити‑скин"
+        ]
+    },
+    "CyberMutants": {
+        "chance": 0.008,
+        "items": [
+            "AUG | Stymphalian",
+            "SSG 08 | Dragonfire",
+            "Tec-9 | Fuel Injector",
+            "Кредиты (1300)",
+            "Био‑скин (мутант)"
+        ]
+    }
+}
         with open(DB_PATH, "w", encoding="utf-8") as f:
             json.dump(default_db, f, ensure_ascii=False, indent=2)
         return default_db
@@ -210,3 +400,4 @@ async def main():
 if __name__ == "__main__":
     asyncio.run(main())
     
+
